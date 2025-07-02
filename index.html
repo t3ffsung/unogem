@@ -237,11 +237,11 @@
         window.currentUserName = "Player"; // Default name, can be changed by user
         window.currentRoomId = null;
         window.isHost = false; // Flag to determine if current user is the room host
+        let APP_ID = 'default-app-id'; // Declare APP_ID here, will be set in initializeAppAndAuth
 
         window.initializeAppAndAuth = async () => {
             try {
                 // __firebase_config and __app_id are provided by the environment
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
                     // Your web app's Firebase configuration
                     // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -254,6 +254,8 @@
                     measurementId: "G-WK0NE909T9"
                 };
 
+                // Set APP_ID based on environment or firebaseConfig.projectId
+                APP_ID = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
 
                 window.firebaseApp = initializeApp(firebaseConfig);
                 window.db = getFirestore(window.firebaseApp);
@@ -290,7 +292,7 @@
             }
             updateGameMessage("Creating room...");
             try {
-                const roomsCollectionRef = collection(window.db, `artifacts/${__app_id}/public/data/rooms`);
+                const roomsCollectionRef = collection(window.db, `artifacts/${APP_ID}/public/data/rooms`);
                 const newRoomRef = doc(roomsCollectionRef); // Firestore generates a unique ID
                 const roomId = newRoomRef.id;
 
@@ -341,7 +343,7 @@
             }
             updateGameMessage(`Joining room ${roomIdInput}...`);
             try {
-                const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, roomIdInput);
+                const roomDocRef = doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, roomIdInput);
                 const roomSnap = await getDoc(roomDocRef);
 
                 if (roomSnap.exists()) {
@@ -406,7 +408,7 @@
             if (!window.db || !window.currentRoomId || !window.currentUserId) return;
 
             try {
-                const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, window.currentRoomId);
+                const roomDocRef = doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, window.currentRoomId);
                 const roomSnap = await getDoc(roomDocRef);
 
                 if (roomSnap.exists()) {
@@ -441,7 +443,7 @@
 
             updateGameMessage("Starting game...");
             try {
-                const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, window.currentRoomId);
+                const roomDocRef = doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, window.currentRoomId);
                 const roomSnap = await getDoc(roomDocRef);
                 const roomData = roomSnap.data();
 
@@ -601,7 +603,7 @@
             if (unsubscribeRoomListener) {
                 unsubscribeRoomListener(); // Unsubscribe from previous listener if any
             }
-            const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, roomId);
+            const roomDocRef = doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, roomId);
             unsubscribeRoomListener = onSnapshot(roomDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const roomData = docSnap.data();
@@ -710,7 +712,7 @@
                 console.error("Cannot update game data: DB or Room ID not available.");
                 return;
             }
-            const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, window.currentRoomId);
+            const roomDocRef = doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, window.currentRoomId);
             try {
                 await updateDoc(roomDocRef, {
                     gameData: {
@@ -1033,7 +1035,7 @@
             gameOverMessageEl.textContent = `${winner.name} won the game!`;
             gameOverModal.classList.add('show');
 
-            await updateDoc(doc(window.db, `artifacts/${__app_id}/public/data/rooms`, window.currentRoomId), {
+            await updateDoc(doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, window.currentRoomId), {
                 status: 'finished',
                 'gameData.gameOver': true,
                 'gameData.gameStarted': false,
