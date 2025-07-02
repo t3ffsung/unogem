@@ -50,6 +50,7 @@
             cursor: pointer;
             user-select: none;
             flex-shrink: 0; /* Prevent cards from shrinking */
+            position: relative; /* For the "UNO" text */
         }
 
         .card-display:hover {
@@ -57,15 +58,21 @@
             box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
         }
 
-        .card-display.red { background-color: #ef4444; } /* Tailwind red-500 */
-        .card-display.blue { background-color: #3b82f6; } /* Tailwind blue-500 */
-        .card-display.green { background-color: #22c55e; } /* Tailwind green-500 */
-        .card-display.yellow { background-color: #eab308; } /* Tailwind yellow-500 */
-        .card-display.black { background-color: #1f2937; } /* Dark gray for wild cards */
-        .card-display.back { background-color: #dc2626; /* Deep red for card back */
-            background-image: linear-gradient(45deg, #dc2626 25%, #ef4444 25%, #ef4444 50%, #dc2626 50%, #dc2626 75%, #ef4444 75%, #ef4444 100%);
+        /* UNO Game Colors - More vibrant */
+        .card-display.red { background-color: #D32F2F; } /* Deep Red */
+        .card-display.blue { background-color: #1976D2; } /* Deep Blue */
+        .card-display.green { background-color: #388E3C; } /* Deep Green */
+        .card-display.yellow { background-color: #FBC02D; } /* Deep Yellow */
+        .card-display.black { background-color: #212121; } /* Dark Gray for wild cards */
+
+        .card-display.back {
+            background-color: #B71C1C; /* Darker Red for card back */
+            background-image: radial-gradient(circle, #E53935 10%, transparent 10%),
+                              radial-gradient(circle, #E53935 10%, transparent 10%);
             background-size: 20px 20px;
-            border: 2px solid #b91c1c;
+            background-position: 0 0, 10px 10px;
+            border: 2px solid #8B0000;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
         .card-display.disabled {
@@ -141,10 +148,10 @@
             border-color: #e2e8f0;
         }
 
-        .color-picker-option.red { background-color: #ef4444; }
-        .color-picker-option.blue { background-color: #3b82f6; }
-        .color-picker-option.green { background-color: #22c55e; }
-        .color-picker-option.yellow { background-color: #eab308; }
+        .color-picker-option.red { background-color: #D32F2F; }
+        .color-picker-option.blue { background-color: #1976D2; }
+        .color-picker-option.green { background-color: #388E3C; }
+        .color-picker-option.yellow { background-color: #FBC02D; }
 
         .modal {
             position: fixed;
@@ -306,6 +313,7 @@
                     activeColor: null,
                     gameOver: false,
                     gameStarted: false,
+                    winnerTeam: null // To store the winning team
                 };
 
                 await setDoc(newRoomRef, {
@@ -513,6 +521,7 @@
                         activeColor: initialActiveColor,
                         gameOver: false,
                         gameStarted: true,
+                        winnerTeam: null // Reset winner team
                     }
                 });
                 updateGameMessage("Game started!");
@@ -536,6 +545,7 @@
         let localGameOver = false;
         let localGameStarted = false;
         let localActiveColor = null;
+        let localWinnerTeam = null; // New variable for team winner
 
         // --- DOM Elements ---
         const drawPileEl = document.getElementById('draw-pile');
@@ -618,6 +628,7 @@
                     localGameOver = roomData.gameData.gameOver;
                     localGameStarted = roomData.gameData.gameStarted;
                     localActiveColor = roomData.gameData.activeColor;
+                    localWinnerTeam = roomData.gameData.winnerTeam; // Update winner team
 
                     window.isHost = roomData.hostId === window.currentUserId; // Update host status
 
@@ -646,11 +657,11 @@
                         }
                         if (localGameOver) {
                             gameOverModal.classList.add('show');
-                            gameOverMessageEl.textContent = `${roomData.gameData.winnerName} won the game!`;
+                            gameOverMessageEl.textContent = `${localWinnerTeam} Team Wins!`;
                         }
                     } else if (roomData.status === 'finished') {
                         gameOverModal.classList.add('show');
-                        gameOverMessageEl.textContent = `${roomData.gameData.winnerName} won the game!`;
+                        gameOverMessageEl.textContent = `${localWinnerTeam} Team Wins!`;
                         updateGameMessage("Game finished. Click Play Again to restart.");
                     }
                 } else {
@@ -690,6 +701,7 @@
             localGameOver = false;
             localGameStarted = false;
             localActiveColor = null;
+            localWinnerTeam = null;
 
             roomSelectionEl.classList.remove('hidden');
             lobbyAreaEl.classList.add('hidden');
@@ -831,11 +843,14 @@
             localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
             localActiveColor = null; // Reset active color for next turn unless a new wild is played
 
-            // Check for win condition after a player has played their card and before the next player's turn
+            // Check for team win condition after a player has played their card
             const previousPlayer = localPlayers[getPreviousPlayerIndex(localCurrentPlayerIndex)];
             if (previousPlayer.hand.length === 0) {
-                await endGame(previousPlayer);
-                return;
+                const winningTeam = checkTeamWin(previousPlayer.team);
+                if (winningTeam) {
+                    await endGame(winningTeam);
+                    return;
+                }
             } else if (previousPlayer.hand.length === 1) {
                 updateGameMessage(`${previousPlayer.name} says UNO!`);
             }
@@ -1024,22 +1039,38 @@
         }
 
         /**
-         * Ends the game and declares the winner.
-         * Updates Firestore with game over status.
-         * @param {object} winner - The player who won the game.
+         * Checks if a team has won the game.
+         * @param {string} teamToCheck - The team ('A' or 'B') to check for winning condition.
+         * @returns {string|null} The winning team ('A' or 'B') if a team has won, otherwise null.
          */
-        async function endGame(winner) {
+        function checkTeamWin(teamToCheck) {
+            const teamPlayers = localPlayers.filter(p => p.team === teamToCheck);
+            const allTeammatesEmptyHand = teamPlayers.every(p => p.hand.length === 0);
+
+            if (allTeammatesEmptyHand) {
+                return teamToCheck;
+            }
+            return null;
+        }
+
+        /**
+         * Ends the game and declares the winning team.
+         * Updates Firestore with game over status.
+         * @param {string} winningTeam - The team ('A' or 'B') that won the game.
+         */
+        async function endGame(winningTeam) {
             localGameOver = true;
             localGameStarted = false;
-            updateGameMessage(`${winner.name} won the game!`);
-            gameOverMessageEl.textContent = `${winner.name} won the game!`;
+            localWinnerTeam = winningTeam;
+            updateGameMessage(`${winningTeam} Team Wins!`);
+            gameOverMessageEl.textContent = `${winningTeam} Team Wins!`;
             gameOverModal.classList.add('show');
 
             await updateDoc(doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, window.currentRoomId), {
                 status: 'finished',
                 'gameData.gameOver': true,
                 'gameData.gameStarted': false,
-                'gameData.winnerName': winner.name
+                'gameData.winnerTeam': winningTeam
             });
 
             // Hide game controls
@@ -1099,6 +1130,11 @@
             drawPileEl.classList.toggle('back', localDeck.length > 0);
             drawPileEl.classList.toggle('disabled', localDeck.length === 0);
 
+            // Get the current human player's team for teammate visibility logic
+            const currentHumanPlayer = localPlayers.find(p => p.userId === window.currentUserId);
+            const currentHumanPlayerTeam = currentHumanPlayer ? currentHumanPlayer.team : null;
+
+
             // Render Player Hands
             // Clear all player areas first
             for (let i = 0; i < 4; i++) {
@@ -1130,19 +1166,24 @@
                     playerAreaEl.classList.add('current-player');
                 }
 
-                if (player.userId === window.currentUserId) {
-                    // Show current human player's hand
+                // Logic for showing/hiding cards based on teammate status
+                const isMyHand = (player.userId === window.currentUserId);
+                const isTeammate = (player.type === 'bot' && player.team === currentHumanPlayerTeam) ||
+                                   (player.type !== 'bot' && player.team === currentHumanPlayerTeam && player.userId !== window.currentUserId); // Another human teammate
+
+                if (isMyHand || isTeammate) {
+                    // Show current human player's hand or teammate's hand
                     const topCard = localDiscardPile[localDiscardPile.length - 1];
                     player.hand.forEach((card, cardIndex) => {
                         const isPlayable = isValidMove(card, topCard);
                         const cardEl = createCardElement(card, cardIndex, isPlayable);
-                        if (isPlayable && localGameStarted && !localGameOver && player.userId === localPlayers[localCurrentPlayerIndex].userId) {
+                        if (isMyHand && isPlayable && localGameStarted && !localGameOver && player.userId === localPlayers[localCurrentPlayerIndex].userId) {
                             cardEl.addEventListener('click', () => handlePlayCard(player, cardIndex));
                         }
                         playerHandEl.appendChild(cardEl);
                     });
                 } else {
-                    // For other players (bots or other human's turn), show card backs
+                    // For opponents (bots or other human's turn), show card backs
                     for (let i = 0; i < player.hand.length; i++) {
                         const cardEl = document.createElement('div');
                         cardEl.classList.add('card-display', 'back');
