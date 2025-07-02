@@ -104,13 +104,50 @@
             box-shadow: 0 0 15px rgba(99, 179, 237, 0.7);
         }
 
+        .game-board-layout {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas:
+                "player-top player-top player-top"
+                "player-left game-center player-right"
+                "player-bottom player-bottom player-bottom";
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px; /* Max width for the game layout */
+            margin: 20px auto;
+        }
+
+        #player-0-area { grid-area: player-bottom; } /* You */
+        #player-1-area { grid-area: player-top; } /* Friend */
+        #player-2-area { grid-area: player-left; } /* Bot 1 */
+        #player-3-area { grid-area: player-right; } /* Bot 2 */
+
+        .game-center {
+            grid-area: game-center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
         .game-board {
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 30px;
-            margin: 20px 0;
             min-height: 120px; /* Ensure space for cards */
+        }
+
+        /* Specific rotations for side players */
+        #player-2-area .player-hand {
+            flex-direction: column;
+            height: 100%;
+        }
+        #player-3-area .player-hand {
+            flex-direction: column;
+            height: 100%;
         }
 
         .message-box {
@@ -204,6 +241,34 @@
             background-color: #4299e1;
         }
 
+        .uno-button {
+            background-color: #E53935; /* UNO Red */
+            color: white;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 50px; /* Pill shape */
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: 3px solid #B71C1C;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        .uno-button:hover {
+            background-color: #C62828;
+            transform: translateY(-2px);
+        }
+
+        .score-display {
+            background-color: #4a5568;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .game-container {
@@ -217,8 +282,22 @@
             .player-hand {
                 gap: 5px;
             }
+            .game-board-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto auto;
+                grid-template-areas:
+                    "player-top"
+                    "player-left"
+                    "game-center"
+                    "player-right"
+                    "player-bottom";
+            }
+            #player-2-area .player-hand,
+            #player-3-area .player-hand {
+                flex-direction: row; /* Reset to row for mobile */
+            }
             .game-board {
-                flex-direction: column;
+                flex-direction: row;
                 gap: 15px;
             }
             .color-picker {
@@ -246,12 +325,56 @@
         window.isHost = false; // Flag to determine if current user is the room host
         let APP_ID = 'default-app-id'; // Declare APP_ID here, will be set in initializeAppAndAuth
 
+        // --- Game Constants ---
+        const COLORS = ['red', 'blue', 'green', 'yellow'];
+        const VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'skip', 'reverse', 'draw2'];
+        const WILD_CARDS = ['wild', 'wild4']; // Wild, Wild Draw Four
+        const WINNING_SCORE = 100; // Points to win the overall game
+
+        // --- Local Game State Variables (updated from Firestore) ---
+        let localDeck = [];
+        let localDiscardPile = [];
+        let localPlayers = [];
+        let localCurrentPlayerIndex = 0;
+        let localDirection = 1;
+        let localDrawPileCount = 0;
+        let localGameOver = false;
+        let localGameStarted = false;
+        let localActiveColor = null;
+        let localWinnerTeam = null;
+        let localTeamScores = { 'A': 0, 'B': 0 }; // Team scores
+        let localUnoCalled = false; // Flag for current player's UNO call
+
+        // --- DOM Elements ---
+        const drawPileEl = document.getElementById('draw-pile');
+        const discardPileEl = document.getElementById('discard-pile');
+        const gameMessageEl = document.getElementById('game-message');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const drawCardBtn = document.getElementById('draw-card-btn');
+        const passTurnBtn = document.getElementById('pass-turn-btn');
+        const unoButton = document.getElementById('uno-button'); // New UNO button
+        const colorPickerModal = document.getElementById('color-picker-modal');
+        const colorPickerOptions = document.querySelectorAll('.color-picker-option');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const gameOverMessageEl = document.getElementById('game-over-message');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const joinRoomBtn = document.getElementById('join-room-btn');
+        const leaveRoomBtn = document.getElementById('leave-room-btn');
+        const roomSelectionEl = document.getElementById('room-selection');
+        const lobbyAreaEl = document.getElementById('lobby-area');
+        const connectedPlayersListEl = document.getElementById('connected-players-list');
+        const userIdDisplayEl = document.getElementById('user-id-display');
+        const roomIdDisplayEl = document.getElementById('room-id-display');
+        const authStatusEl = document.getElementById('auth-status');
+        const playerNameInput = document.getElementById('player-name-input');
+        const teamAScoreEl = document.getElementById('team-a-score');
+        const teamBScoreEl = document.getElementById('team-b-score');
+
+        // --- Firebase Initialization ---
         window.initializeAppAndAuth = async () => {
             try {
-                // __firebase_config and __app_id are provided by the environment
                 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-                    // Your web app's Firebase configuration
-                    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
                     apiKey: "AIzaSyDO7F6dfdzphfk4y5EO8Ntfd3pu0z5q95k",
                     authDomain: "uno-gem.firebaseapp.com",
                     projectId: "uno-gem",
@@ -261,7 +384,6 @@
                     measurementId: "G-WK0NE909T9"
                 };
 
-                // Set APP_ID based on environment or firebaseConfig.projectId
                 APP_ID = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
 
                 window.firebaseApp = initializeApp(firebaseConfig);
@@ -272,26 +394,25 @@
                     if (user) {
                         window.currentUserId = user.uid;
                         console.log("Authenticated as:", window.currentUserId);
-                        document.getElementById('user-id-display').textContent = `Your User ID: ${window.currentUserId}`;
+                        userIdDisplayEl.textContent = `Your User ID: ${window.currentUserId}`;
                     } else {
                         console.log("No user signed in. Signing in anonymously...");
-                        // Use __initial_auth_token if available, otherwise sign in anonymously
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(window.auth, __initial_auth_token);
                         } else {
                             await signInAnonymously(window.auth);
                         }
                     }
-                    document.getElementById('auth-status').textContent = `Authenticated: ${window.currentUserId ? 'Yes' : 'No'}`;
-                    document.getElementById('room-selection').classList.remove('hidden'); // Show room controls after auth
+                    authStatusEl.textContent = `Authenticated: ${window.currentUserId ? 'Yes' : 'No'}`;
+                    roomSelectionEl.classList.remove('hidden');
                 });
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
-                document.getElementById('game-message').textContent = "Error initializing Firebase. Check console for details.";
+                gameMessageEl.textContent = "Error initializing Firebase. Check console for details.";
             }
         };
 
-        // Make functions available globally for direct access from HTML script
+        // --- Room Management Functions ---
         window.createRoom = async () => {
             if (!window.db || !window.currentUserId) {
                 updateGameMessage("Firebase not initialized. Please wait.");
@@ -300,27 +421,28 @@
             updateGameMessage("Creating room...");
             try {
                 const roomsCollectionRef = collection(window.db, `artifacts/${APP_ID}/public/data/rooms`);
-                const newRoomRef = doc(roomsCollectionRef); // Firestore generates a unique ID
+                const newRoomRef = doc(roomsCollectionRef);
                 const roomId = newRoomRef.id;
 
                 const initialGameState = {
                     deck: [],
                     discardPile: [],
-                    players: [], // Will be populated when game starts
+                    players: [],
                     currentPlayerIndex: 0,
                     direction: 1,
                     drawPileCount: 0,
                     activeColor: null,
                     gameOver: false,
                     gameStarted: false,
-                    winnerTeam: null // To store the winning team
+                    winnerTeam: null,
+                    teamScores: { 'A': 0, 'B': 0 }
                 };
 
                 await setDoc(newRoomRef, {
                     roomId: roomId,
                     hostId: window.currentUserId,
                     status: 'lobby',
-                    players: [{ userId: window.currentUserId, name: window.currentUserName, team: 'A', hand: [] }],
+                    players: [{ userId: window.currentUserId, name: window.currentUserName, team: 'A', hand: [], unoCalled: false }],
                     gameData: initialGameState,
                     createdAt: new Date().toISOString()
                 });
@@ -328,10 +450,10 @@
                 window.currentRoomId = roomId;
                 window.isHost = true;
                 updateGameMessage(`Room created! Share this ID: ${roomId}`);
-                document.getElementById('room-id-display').textContent = `Room ID: ${roomId}`;
-                document.getElementById('lobby-room-id-display').textContent = roomId; // Update lobby display
-                document.getElementById('lobby-area').classList.remove('hidden');
-                document.getElementById('room-selection').classList.add('hidden');
+                roomIdDisplayEl.textContent = `Room ID: ${roomId}`;
+                document.getElementById('lobby-room-id-display').textContent = roomId;
+                lobbyAreaEl.classList.remove('hidden');
+                roomSelectionEl.classList.add('hidden');
                 setupRoomListener(roomId);
             } catch (e) {
                 console.error("Error creating room: ", e);
@@ -365,43 +487,40 @@
                         return;
                     }
 
-                    // Assign team based on current players
                     const existingPlayers = roomData.players || [];
-                    let newPlayerTeam = 'A'; // Default to A
-                    if (existingPlayers.length === 1) { // If one player already, assign opposite team
+                    let newPlayerTeam = 'A';
+                    if (existingPlayers.length === 1) {
                         newPlayerTeam = existingPlayers[0].team === 'A' ? 'B' : 'A';
-                    } else if (existingPlayers.length === 2) { // Try to balance teams
+                    } else if (existingPlayers.length === 2) {
                         const teamACount = existingPlayers.filter(p => p.team === 'A').length;
                         const teamBCount = existingPlayers.filter(p => p.team === 'B').length;
                         newPlayerTeam = teamACount <= teamBCount ? 'A' : 'B';
-                    } else if (existingPlayers.length === 3) { // Assign to the team with 1 player
+                    } else if (existingPlayers.length === 3) {
                         const teamACount = existingPlayers.filter(p => p.team === 'A').length;
                         const teamBCount = existingPlayers.filter(p => p.team === 'B').length;
                         newPlayerTeam = teamACount === 1 ? 'A' : 'B';
                     }
 
-
-                    // Check if player already in room
                     if (existingPlayers.some(p => p.userId === window.currentUserId)) {
                         updateGameMessage("You are already in this room.");
                         window.currentRoomId = roomIdInput;
-                        document.getElementById('room-id-display').textContent = `Room ID: ${roomIdInput}`;
-                        document.getElementById('lobby-room-id-display').textContent = roomIdInput; // Update lobby display
-                        document.getElementById('lobby-area').classList.remove('hidden');
-                        document.getElementById('room-selection').classList.add('hidden');
+                        roomIdDisplayEl.textContent = `Room ID: ${roomIdInput}`;
+                        document.getElementById('lobby-room-id-display').textContent = roomIdInput;
+                        lobbyAreaEl.classList.remove('hidden');
+                        roomSelectionEl.classList.add('hidden');
                         setupRoomListener(roomIdInput);
                         return;
                     }
 
-                    const updatedPlayers = [...existingPlayers, { userId: window.currentUserId, name: window.currentUserName, team: newPlayerTeam, hand: [] }];
+                    const updatedPlayers = [...existingPlayers, { userId: window.currentUserId, name: window.currentUserName, team: newPlayerTeam, hand: [], unoCalled: false }];
                     await updateDoc(roomDocRef, { players: updatedPlayers });
 
                     window.currentRoomId = roomIdInput;
                     updateGameMessage(`Joined room ${roomIdInput}!`);
-                    document.getElementById('room-id-display').textContent = `Room ID: ${roomIdInput}`;
-                    document.getElementById('lobby-room-id-display').textContent = roomIdInput; // Update lobby display
-                    document.getElementById('lobby-area').classList.remove('hidden');
-                    document.getElementById('room-selection').classList.add('hidden');
+                    roomIdDisplayEl.textContent = `Room ID: ${roomIdInput}`;
+                    document.getElementById('lobby-room-id-display').textContent = roomIdInput;
+                    lobbyAreaEl.classList.remove('hidden');
+                    roomSelectionEl.classList.add('hidden');
                     setupRoomListener(roomIdInput);
                 } else {
                     updateGameMessage("Room not found. Check the ID.");
@@ -424,10 +543,8 @@
                     let updatedPlayers = roomData.players.filter(p => p.userId !== window.currentUserId);
 
                     if (roomData.hostId === window.currentUserId && updatedPlayers.length > 0) {
-                        // If host leaves, assign new host
                         roomData.hostId = updatedPlayers[0].userId;
                     } else if (roomData.hostId === window.currentUserId && updatedPlayers.length === 0) {
-                        // If host leaves and no other players, delete room
                         await deleteDoc(roomDocRef);
                         console.log("Room deleted as host left and no other players.");
                         resetGameUI();
@@ -455,24 +572,21 @@
                 const roomSnap = await getDoc(roomDocRef);
                 const roomData = roomSnap.data();
 
-                if (roomData.players.length < 2) { // Minimum 2 players to start Uno
+                if (roomData.players.length < 2) {
                     updateGameMessage("Need at least 2 players to start the game.");
                     return;
                 }
 
-                // Initialize game state for all players, including bots if needed
-                let gamePlayers = roomData.players.map(p => ({ ...p, hand: [] }));
+                let gamePlayers = roomData.players.map(p => ({ ...p, hand: [], unoCalled: false }));
                 const botNames = ['Bot 1', 'Bot 2'];
-                const botTeams = ['A', 'B']; // Assign teams alternatingly for bots
+                const botTeams = ['A', 'B'];
 
-                // Add bots if less than 4 human players
                 for (let i = gamePlayers.length; i < 4; i++) {
                     const botId = `bot-${Date.now()}-${i}`;
-                    const assignedTeam = botTeams[i % 2]; // Alternate teams for bots
-                    gamePlayers.push({ userId: botId, name: botNames[i - gamePlayers.length], type: 'bot', team: assignedTeam, hand: [] });
+                    const assignedTeam = botTeams[i % 2];
+                    gamePlayers.push({ userId: botId, name: botNames[i - gamePlayers.length], type: 'bot', team: assignedTeam, hand: [], unoCalled: false });
                 }
 
-                // Create and shuffle deck
                 let newDeck = [];
                 COLORS.forEach(color => {
                     newDeck.push({ color, value: '0' });
@@ -492,14 +606,12 @@
                 });
                 newDeck = shuffleArray(newDeck);
 
-                // Deal cards
                 gamePlayers.forEach(player => {
                     for (let i = 0; i < 7; i++) {
                         player.hand.push(newDeck.pop());
                     }
                 });
 
-                // Place first card on discard pile
                 let firstCard = newDeck.pop();
                 while (firstCard.color === 'black') {
                     newDeck.unshift(firstCard);
@@ -511,7 +623,7 @@
 
                 await updateDoc(roomDocRef, {
                     status: 'playing',
-                    players: gamePlayers, // Update players with hands
+                    players: gamePlayers,
                     gameData: {
                         deck: newDeck,
                         discardPile: newDiscardPile,
@@ -521,7 +633,8 @@
                         activeColor: initialActiveColor,
                         gameOver: false,
                         gameStarted: true,
-                        winnerTeam: null // Reset winner team
+                        winnerTeam: null,
+                        teamScores: roomData.gameData.teamScores || { 'A': 0, 'B': 0 } // Preserve scores across rounds
                     }
                 });
                 updateGameMessage("Game started!");
@@ -531,129 +644,62 @@
             }
         };
 
-        // --- Game State Variables (local copies, updated from Firestore) ---
-        const COLORS = ['red', 'blue', 'green', 'yellow'];
-        const VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'skip', 'reverse', 'draw2'];
-        const WILD_CARDS = ['wild', 'wild4']; // Wild, Wild Draw Four
-
-        let localDeck = [];
-        let localDiscardPile = [];
-        let localPlayers = [];
-        let localCurrentPlayerIndex = 0;
-        let localDirection = 1;
-        let localDrawPileCount = 0;
-        let localGameOver = false;
-        let localGameStarted = false;
-        let localActiveColor = null;
-        let localWinnerTeam = null; // New variable for team winner
-
-        // --- DOM Elements ---
-        const drawPileEl = document.getElementById('draw-pile');
-        const discardPileEl = document.getElementById('discard-pile');
-        const gameMessageEl = document.getElementById('game-message');
-        const playersContainerEl = document.getElementById('players-container');
-        const startGameBtn = document.getElementById('start-game-btn');
-        const drawCardBtn = document.getElementById('draw-card-btn');
-        const passTurnBtn = document.getElementById('pass-turn-btn');
-        const colorPickerModal = document.getElementById('color-picker-modal');
-        const colorPickerOptions = document.querySelectorAll('.color-picker-option');
-        const gameOverModal = document.getElementById('game-over-modal');
-        const gameOverMessageEl = document.getElementById('game-over-message');
-        const restartGameBtn = document.getElementById('restart-game-btn');
-        const createRoomBtn = document.getElementById('create-room-btn');
-        const joinRoomBtn = document.getElementById('join-room-btn');
-        const leaveRoomBtn = document.getElementById('leave-room-btn');
-        const roomSelectionEl = document.getElementById('room-selection');
-        const lobbyAreaEl = document.getElementById('lobby-area');
-        const connectedPlayersListEl = document.getElementById('connected-players-list');
-        const userIdDisplayEl = document.getElementById('user-id-display');
-        const roomIdDisplayEl = document.getElementById('room-id-display');
-        const authStatusEl = document.getElementById('auth-status');
-        const playerNameInput = document.getElementById('player-name-input');
-
-        // --- Event Listeners ---
-        createRoomBtn.addEventListener('click', window.createRoom);
-        joinRoomBtn.addEventListener('click', window.joinRoom);
-        leaveRoomBtn.addEventListener('click', window.leaveRoom);
-        startGameBtn.addEventListener('click', window.startGameInRoom);
-        drawCardBtn.addEventListener('click', handleDrawCard);
-        passTurnBtn.addEventListener('click', handlePassTurn);
-        drawPileEl.addEventListener('click', handleDrawCard); // Allow drawing by clicking the pile
-
-        playerNameInput.addEventListener('input', (event) => {
-            window.currentUserName = event.target.value.trim();
-            if (window.currentUserName === "") {
-                window.currentUserName = "Player"; // Default if empty
-            }
-        });
-
-        // Color picker options click handler
-        colorPickerOptions.forEach(option => {
-            option.addEventListener('click', async (event) => {
-                const chosenColor = event.target.dataset.color;
-                colorPickerModal.classList.remove('show'); // Hide modal
-                await updateGameDataInFirestore({ activeColor: chosenColor }); // Update active color in Firestore
-                // nextTurn will be called by the Firestore listener after the update
-            });
-        });
-
-        restartGameBtn.addEventListener('click', async () => {
-            gameOverModal.classList.remove('show');
-            if (window.isHost) {
-                await window.startGameInRoom(); // Host restarts the game
-            } else {
-                updateGameMessage("Waiting for host to restart the game...");
-            }
-        });
-
         // --- Firestore Listener for Room Data ---
         let unsubscribeRoomListener = null;
 
         function setupRoomListener(roomId) {
             if (unsubscribeRoomListener) {
-                unsubscribeRoomListener(); // Unsubscribe from previous listener if any
+                unsubscribeRoomListener();
             }
             const roomDocRef = doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, roomId);
             unsubscribeRoomListener = onSnapshot(roomDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const roomData = docSnap.data();
-                    // Update local game state variables
-                    localGameDataSnapshot = roomData.gameData; // Update the snapshot
+                    localGameDataSnapshot = roomData.gameData;
                     localDeck = roomData.gameData.deck;
                     localDiscardPile = roomData.gameData.discardPile;
-                    localPlayers = roomData.players; // Players array from room data
+                    localPlayers = roomData.players;
                     localCurrentPlayerIndex = roomData.gameData.currentPlayerIndex;
                     localDirection = roomData.gameData.direction;
                     localDrawPileCount = roomData.gameData.drawPileCount;
                     localGameOver = roomData.gameData.gameOver;
                     localGameStarted = roomData.gameData.gameStarted;
                     localActiveColor = roomData.gameData.activeColor;
-                    localWinnerTeam = roomData.gameData.winnerTeam; // Update winner team
+                    localWinnerTeam = roomData.gameData.winnerTeam;
+                    localTeamScores = roomData.gameData.teamScores;
 
-                    window.isHost = roomData.hostId === window.currentUserId; // Update host status
+                    window.isHost = roomData.hostId === window.currentUserId;
 
-                    // Update UI based on room status
                     if (roomData.status === 'lobby') {
                         document.getElementById('game-board-section').classList.add('hidden');
                         document.getElementById('game-controls').classList.add('hidden');
+                        unoButton.classList.add('hidden'); // Hide UNO button in lobby
                         lobbyAreaEl.classList.remove('hidden');
-                        startGameBtn.classList.toggle('hidden', !window.isHost); // Only host can start
+                        startGameBtn.classList.toggle('hidden', !window.isHost);
                         updateGameMessage("Waiting for players in the lobby...");
                         updateLobbyPlayers(roomData.players);
                     } else if (roomData.status === 'playing') {
                         lobbyAreaEl.classList.add('hidden');
                         document.getElementById('game-board-section').classList.remove('hidden');
                         document.getElementById('game-controls').classList.remove('hidden');
-                        renderGame(); // Re-render game board
+                        renderGame();
+
                         const currentPlayer = localPlayers[localCurrentPlayerIndex];
                         if (currentPlayer && currentPlayer.userId === window.currentUserId) {
                             updateGameMessage(`It's your turn!`);
                             drawCardBtn.classList.remove('hidden');
                             passTurnBtn.classList.remove('hidden');
+                            // Show UNO button if current player has 2 cards and hasn't called UNO yet
+                            if (currentPlayer.hand.length === 2 && !currentPlayer.unoCalled) {
+                                unoButton.classList.remove('hidden');
+                            } else {
+                                unoButton.classList.add('hidden');
+                            }
                         } else if (currentPlayer) {
                             updateGameMessage(`It's ${currentPlayer.name}'s turn.`);
                             drawCardBtn.classList.add('hidden');
                             passTurnBtn.classList.add('hidden');
+                            unoButton.classList.add('hidden'); // Hide UNO button for other players/bots
                         }
                         if (localGameOver) {
                             gameOverModal.classList.add('show');
@@ -665,7 +711,6 @@
                         updateGameMessage("Game finished. Click Play Again to restart.");
                     }
                 } else {
-                    // Room no longer exists (e.g., host deleted it)
                     updateGameMessage("Room no longer exists. Returning to room selection.");
                     resetGameUI();
                 }
@@ -702,23 +747,20 @@
             localGameStarted = false;
             localActiveColor = null;
             localWinnerTeam = null;
+            localTeamScores = { 'A': 0, 'B': 0 };
 
             roomSelectionEl.classList.remove('hidden');
             lobbyAreaEl.classList.add('hidden');
             document.getElementById('game-board-section').classList.add('hidden');
             document.getElementById('game-controls').classList.add('hidden');
+            unoButton.classList.add('hidden');
             gameOverModal.classList.remove('show');
             updateGameMessage("Welcome to Uno! Create or Join a room.");
-            document.getElementById('room-id-display').textContent = 'Room ID: N/A';
-            document.getElementById('lobby-room-id-display').textContent = ''; // Clear lobby room ID
-            renderGame(); // Clear game board
+            roomIdDisplayEl.textContent = 'Room ID: N/A';
+            document.getElementById('lobby-room-id-display').textContent = '';
+            renderGame();
         }
 
-        /**
-         * Updates the gameData object in Firestore for the current room.
-         * This is the central point for all game state changes.
-         * @param {object} updates - An object containing the fields to update in gameData.
-         */
         async function updateGameDataInFirestore(updates) {
             if (!window.db || !window.currentRoomId) {
                 console.error("Cannot update game data: DB or Room ID not available.");
@@ -728,9 +770,10 @@
             try {
                 await updateDoc(roomDocRef, {
                     gameData: {
-                        ...localGameDataSnapshot, // Use the latest snapshot to avoid overwriting
+                        ...localGameDataSnapshot,
                         ...updates
-                    }
+                    },
+                    players: localPlayers // Always update players array as it contains hand and unoCalled status
                 });
             } catch (e) {
                 console.error("Error updating game data:", e);
@@ -738,17 +781,10 @@
             }
         }
 
-        // Variable to hold the latest gameData snapshot to prevent stale data issues
         let localGameDataSnapshot = {};
 
-        // --- Game Logic Functions (adapted for Firestore) ---
+        // --- Game Logic Functions ---
 
-        /**
-         * Draws a single card from the deck and adds it to the player's hand.
-         * If the deck is empty, shuffles the discard pile back into the deck.
-         * @param {object} player - The player object to draw for.
-         * @returns {object} The card drawn.
-         */
         function drawCardFromLocalDeck(player) {
             if (localDeck.length === 0) {
                 if (localDiscardPile.length <= 1) {
@@ -765,42 +801,26 @@
             return card;
         }
 
-        /**
-         * Checks if a card can be played on the current discard pile top card.
-         * @param {object} cardPlayed - The card the current player wants to play.
-         * @param {object} topCard - The card currently on top of the discard pile.
-         * @returns {boolean} True if the move is valid, false otherwise.
-         */
         function isValidMove(cardPlayed, topCard) {
-            if (!topCard) return true; // Can play any card if discard pile is empty (shouldn't happen after first card)
+            if (!topCard) return true;
 
-            // Wild cards can always be played
             if (cardPlayed.color === 'black') {
                 return true;
             }
 
-            // If activeColor is set (after a Wild card), check against it
             const currentTopColor = localActiveColor || topCard.color;
-
-            // Match color or value
             return cardPlayed.color === currentTopColor || cardPlayed.value === topCard.value;
         }
 
-        /**
-         * Applies the effect of special cards (Skip, Reverse, Draw2, Wild4).
-         * Updates local state, which will then be pushed to Firestore.
-         * @param {object} card - The card that was just played.
-         */
         function applyCardEffect(card) {
             switch (card.value) {
                 case 'skip':
                     updateGameMessage(`${localPlayers[localCurrentPlayerIndex].name} played a Skip! ${localPlayers[getNextPlayerIndex(localCurrentPlayerIndex)].name} is skipped.`);
-                    localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex); // Skip next player
+                    localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
                     break;
                 case 'reverse':
-                    localDirection *= -1; // Reverse direction
+                    localDirection *= -1;
                     updateGameMessage(`${localPlayers[localCurrentPlayerIndex].name} played a Reverse! Direction changed.`);
-                    // If only 2 players, reverse acts like a skip
                     if (localPlayers.length === 2) {
                         localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
                     }
@@ -810,7 +830,6 @@
                     updateGameMessage(`${localPlayers[localCurrentPlayerIndex].name} played a Draw Two! Next player draws 2 cards.`);
                     break;
                 case 'wild':
-                    // Handled by color picker modal
                     break;
                 case 'wild4':
                     localDrawPileCount += 4;
@@ -819,32 +838,39 @@
             }
         }
 
-        /**
-         * Advances the game to the next player's turn.
-         * Handles drawPileCount for Draw2/Wild4.
-         * Updates Firestore with the new game state.
-         */
         async function nextTurn() {
             if (localGameOver) return;
 
-            // Handle accumulated draw cards
+            const previousPlayer = localPlayers[localCurrentPlayerIndex]; // This is the player who just played or drew
+
+            // UNO penalty check for the player whose turn is ending
+            if (previousPlayer.hand.length === 1 && !previousPlayer.unoCalled && previousPlayer.type !== 'bot') {
+                updateGameMessage(`${previousPlayer.name} failed to call UNO! Draws 2 cards.`);
+                drawCardFromLocalDeck(previousPlayer);
+                drawCardFromLocalDeck(previousPlayer);
+            }
+            // Reset unoCalled flag for the player whose turn is ending
+            previousPlayer.unoCalled = false;
+
+
+            // Handle accumulated draw cards for the *next* player
             if (localDrawPileCount > 0) {
-                const nextPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
-                const nextPlayer = localPlayers[nextPlayerIndex];
-                updateGameMessage(`${nextPlayer.name} draws ${localDrawPileCount} cards.`);
+                const playerToDrawIndex = getNextPlayerIndex(localCurrentPlayerIndex);
+                const playerToDraw = localPlayers[playerToDrawIndex];
+                updateGameMessage(`${playerToDraw.name} draws ${localDrawPileCount} cards.`);
                 for (let i = 0; i < localDrawPileCount; i++) {
-                    drawCardFromLocalDeck(nextPlayer);
+                    drawCardFromLocalDeck(playerToDraw);
                 }
-                localDrawPileCount = 0; // Reset draw count
-                localCurrentPlayerIndex = nextPlayerIndex; // Move to the player who drew
+                localDrawPileCount = 0;
+                localCurrentPlayerIndex = playerToDrawIndex; // Move to the player who drew
+            } else {
+                // If no draw penalty, just move to the next player
+                localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
             }
 
-            // Move to the next player based on direction
-            localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
             localActiveColor = null; // Reset active color for next turn unless a new wild is played
 
             // Check for team win condition after a player has played their card
-            const previousPlayer = localPlayers[getPreviousPlayerIndex(localCurrentPlayerIndex)];
             if (previousPlayer.hand.length === 0) {
                 const winningTeam = checkTeamWin(previousPlayer.team);
                 if (winningTeam) {
@@ -852,32 +878,28 @@
                     return;
                 }
             } else if (previousPlayer.hand.length === 1) {
-                updateGameMessage(`${previousPlayer.name} says UNO!`);
+                // This message is for the player who just played their second-to-last card
+                // The actual UNO call is handled by the button.
+                updateGameMessage(`${previousPlayer.name} has 1 card left!`);
             }
 
             // Update Firestore with the new turn state
             await updateGameDataInFirestore({
-                players: localPlayers, // Players with updated hands
+                players: localPlayers, // Players with updated hands and unoCalled status
                 currentPlayerIndex: localCurrentPlayerIndex,
                 direction: localDirection,
                 drawPileCount: localDrawPileCount,
                 activeColor: localActiveColor,
-                deck: localDeck, // Deck might have changed if reshuffled
-                discardPile: localDiscardPile // Discard pile might have changed if reshuffled
+                deck: localDeck,
+                discardPile: localDiscardPile
             });
 
-            // If current player is a bot, trigger bot's turn after a short delay
             const currentPlayer = localPlayers[localCurrentPlayerIndex];
             if (currentPlayer && currentPlayer.type === 'bot') {
-                setTimeout(botPlay, 1500); // Give a slight delay for bot's turn
+                setTimeout(botPlay, 1500);
             }
         }
 
-        /**
-         * Calculates the index of the next player based on current direction.
-         * @param {number} currentIndex - The current player's index.
-         * @returns {number} The index of the next player.
-         */
         function getNextPlayerIndex(currentIndex) {
             let next = currentIndex + localDirection;
             if (next >= localPlayers.length) {
@@ -888,11 +910,6 @@
             return next;
         }
 
-        /**
-         * Calculates the index of the previous player based on current direction.
-         * @param {number} currentIndex - The current player's index.
-         * @returns {number} The index of the previous player.
-         */
         function getPreviousPlayerIndex(currentIndex) {
             let prev = currentIndex - localDirection;
             if (prev >= localPlayers.length) {
@@ -903,11 +920,6 @@
             return prev;
         }
 
-        /**
-         * Handles a human player playing a card.
-         * @param {object} player - The human player object.
-         * @param {number} cardIndex - The index of the card in the player's hand.
-         */
         async function handlePlayCard(player, cardIndex) {
             if (localGameOver || player.userId !== window.currentUserId || player.userId !== localPlayers[localCurrentPlayerIndex].userId) {
                 updateGameMessage("It's not your turn or the game is over.");
@@ -922,34 +934,37 @@
                 return;
             }
 
-            // Update local state
+            // Check for UNO call before playing if player has 2 cards and is playing one
+            if (player.hand.length === 2 && !player.unoCalled) {
+                updateGameMessage("You must call UNO!");
+                // Do not allow playing if UNO not called, force them to press the button
+                // For simplicity, we'll auto-penalize if they don't press it before next turn.
+                // The button will be visible.
+            }
+
+            // Remove card from hand and add to discard pile
             player.hand.splice(cardIndex, 1);
             localDiscardPile.push(card);
 
             updateGameMessage(`${player.name} played a ${card.value.toUpperCase()} ${card.color === 'black' ? '' : card.color.toUpperCase()} card.`);
 
-            applyCardEffect(card); // Apply effects to local state
+            applyCardEffect(card);
 
-            // If a Wild card was played, show color picker modal
             if (card.value === 'wild' || card.value === 'wild4') {
                 colorPickerModal.classList.add('show');
-                // Hide buttons until color is chosen
                 drawCardBtn.classList.add('hidden');
                 passTurnBtn.classList.add('hidden');
-                // The nextTurn will be called after color selection is made and pushed to Firestore
+                unoButton.classList.add('hidden'); // Hide UNO button during color selection
                 return;
             }
 
-            // Hide buttons as turn is ending
             drawCardBtn.classList.add('hidden');
             passTurnBtn.classList.add('hidden');
+            unoButton.classList.add('hidden'); // Hide UNO button after playing
 
-            await nextTurn(); // Proceed to next turn, which pushes state to Firestore
+            await nextTurn();
         }
 
-        /**
-         * Handles a human player drawing a card.
-         */
         async function handleDrawCard() {
             const currentPlayer = localPlayers[localCurrentPlayerIndex];
             if (localGameOver || currentPlayer.userId !== window.currentUserId || currentPlayer.type === 'bot') {
@@ -960,21 +975,17 @@
             const drawnCard = drawCardFromLocalDeck(currentPlayer);
             if (drawnCard) {
                 updateGameMessage(`${currentPlayer.name} drew a card.`);
-                // Update Firestore with the drawn card and updated deck/discard pile
                 await updateGameDataInFirestore({
-                    players: localPlayers, // Player hand updated
+                    players: localPlayers,
                     deck: localDeck,
                     discardPile: localDiscardPile
                 });
-                // After drawing, the player can either play the drawn card if valid, or pass their turn.
                 passTurnBtn.classList.remove('hidden');
-                drawCardBtn.classList.add('hidden'); // Cannot draw again
+                drawCardBtn.classList.add('hidden');
+                unoButton.classList.add('hidden'); // Hide UNO button after drawing
             }
         }
 
-        /**
-         * Handles a human player passing their turn after drawing a card.
-         */
         async function handlePassTurn() {
             const currentPlayer = localPlayers[localCurrentPlayerIndex];
             if (localGameOver || currentPlayer.userId !== window.currentUserId || currentPlayer.type === 'bot') {
@@ -984,13 +995,28 @@
             updateGameMessage(`${currentPlayer.name} passed their turn.`);
             drawCardBtn.classList.add('hidden');
             passTurnBtn.classList.add('hidden');
-            await nextTurn(); // Proceed to next turn
+            unoButton.classList.add('hidden'); // Hide UNO button after passing
+            await nextTurn();
         }
 
-        /**
-         * Implements basic bot AI to play a card or draw.
-         * Updates local state and pushes to Firestore.
-         */
+        async function handleUnoCall() {
+            const currentPlayer = localPlayers[localCurrentPlayerIndex];
+            if (localGameOver || currentPlayer.userId !== window.currentUserId || currentPlayer.type === 'bot') {
+                updateGameMessage("It's not your turn or you cannot call UNO.");
+                return;
+            }
+
+            // Player must have exactly one card to call UNO
+            if (currentPlayer.hand.length === 1) {
+                currentPlayer.unoCalled = true;
+                updateGameMessage(`${currentPlayer.name} called UNO!`);
+                unoButton.classList.add('hidden'); // Hide button once called
+                await updateGameDataInFirestore({ players: localPlayers }); // Update Firestore with unoCalled status
+            } else {
+                updateGameMessage("You can only call UNO when you have one card left!");
+            }
+        }
+
         async function botPlay() {
             if (localGameOver) return;
 
@@ -998,102 +1024,117 @@
             const topCard = localDiscardPile[localDiscardPile.length - 1];
             let played = false;
 
-            // Try to find a playable card
+            // Bot logic for UNO call
+            if (bot.hand.length === 2 && !bot.unoCalled) {
+                bot.unoCalled = true; // Bot "calls" UNO automatically
+                updateGameMessage(`${bot.name} called UNO!`);
+            }
+
             for (let i = 0; i < bot.hand.length; i++) {
                 const card = bot.hand[i];
                 if (isValidMove(card, topCard)) {
-                    // Play the card
                     bot.hand.splice(i, 1);
                     localDiscardPile.push(card);
                     updateGameMessage(`${bot.name} played a ${card.value.toUpperCase()} ${card.color === 'black' ? '' : card.color.toUpperCase()} card.`);
                     applyCardEffect(card);
                     played = true;
 
-                    // If Wild card, choose a random color
                     if (card.value === 'wild' || card.value === 'wild4') {
                         localActiveColor = COLORS[Math.floor(Math.random() * COLORS.length)];
                         updateGameMessage(`${bot.name} chose ${localActiveColor.toUpperCase()} as the new color.`);
                     }
-                    break; // Bot plays one card and stops
+                    break;
                 }
             }
 
             if (!played) {
-                // If no playable card, draw one
                 drawCardFromLocalDeck(bot);
                 updateGameMessage(`${bot.name} drew a card.`);
             }
 
-            // Update Firestore with bot's move
             await updateGameDataInFirestore({
                 players: localPlayers,
                 discardPile: localDiscardPile,
                 deck: localDeck,
                 activeColor: localActiveColor,
-                currentPlayerIndex: localCurrentPlayerIndex, // This will be updated by nextTurn
-                direction: localDirection, // This will be updated by nextTurn
-                drawPileCount: localDrawPileCount // This will be updated by nextTurn
+                currentPlayerIndex: localCurrentPlayerIndex,
+                direction: localDirection,
+                drawPileCount: localDrawPileCount
             });
 
-            setTimeout(nextTurn, 1000); // Proceed to next turn after a short delay
+            setTimeout(nextTurn, 1000);
         }
 
-        /**
-         * Checks if a team has won the game.
-         * @param {string} teamToCheck - The team ('A' or 'B') to check for winning condition.
-         * @returns {string|null} The winning team ('A' or 'B') if a team has won, otherwise null.
-         */
+        function calculateRoundPoints(teamThatWon) {
+            let points = 0;
+            localPlayers.forEach(player => {
+                if (player.team !== teamThatWon) { // Only count cards from the opposing team
+                    player.hand.forEach(card => {
+                        if (card.value >= '0' && card.value <= '9') {
+                            points += parseInt(card.value);
+                        } else if (['skip', 'reverse', 'draw2'].includes(card.value)) {
+                            points += 20;
+                        } else if (['wild', 'wild4'].includes(card.value)) {
+                            points += 50;
+                        }
+                    });
+                }
+            });
+            return points;
+        }
+
         function checkTeamWin(teamToCheck) {
             const teamPlayers = localPlayers.filter(p => p.team === teamToCheck);
             const allTeammatesEmptyHand = teamPlayers.every(p => p.hand.length === 0);
-
-            if (allTeammatesEmptyHand) {
-                return teamToCheck;
-            }
-            return null;
+            return allTeammatesEmptyHand ? teamToCheck : null;
         }
 
-        /**
-         * Ends the game and declares the winning team.
-         * Updates Firestore with game over status.
-         * @param {string} winningTeam - The team ('A' or 'B') that won the game.
-         */
         async function endGame(winningTeam) {
             localGameOver = true;
             localGameStarted = false;
             localWinnerTeam = winningTeam;
-            updateGameMessage(`${winningTeam} Team Wins!`);
-            gameOverMessageEl.textContent = `${winningTeam} Team Wins!`;
+
+            const roundPoints = calculateRoundPoints(winningTeam);
+            localTeamScores[winningTeam] += roundPoints;
+
+            updateGameMessage(`${winningTeam} Team Wins the round! Gained ${roundPoints} points. Total: Team A: ${localTeamScores['A']}, Team B: ${localTeamScores['B']}`);
+            gameOverMessageEl.textContent = `${winningTeam} Team Wins the round! Total Score: Team A: ${localTeamScores['A']}, Team B: ${localTeamScores['B']}`;
+
+            // Check for overall game win
+            let overallWinner = null;
+            if (localTeamScores['A'] >= WINNING_SCORE) {
+                overallWinner = 'Team A';
+            } else if (localTeamScores['B'] >= WINNING_SCORE) {
+                overallWinner = 'Team B';
+            }
+
+            if (overallWinner) {
+                gameOverMessageEl.textContent = `${overallWinner} wins the ENTIRE GAME! Final Score: Team A: ${localTeamScores['A']}, Team B: ${localTeamScores['B']}`;
+            }
+
             gameOverModal.classList.add('show');
 
             await updateDoc(doc(window.db, `artifacts/${APP_ID}/public/data/rooms`, window.currentRoomId), {
                 status: 'finished',
                 'gameData.gameOver': true,
                 'gameData.gameStarted': false,
-                'gameData.winnerTeam': winningTeam
+                'gameData.winnerTeam': localWinnerTeam,
+                'gameData.teamScores': localTeamScores
             });
 
-            // Hide game controls
             drawCardBtn.classList.add('hidden');
             passTurnBtn.classList.add('hidden');
+            unoButton.classList.add('hidden');
         }
 
         // --- UI Rendering Functions ---
 
-        /**
-         * Renders a single card HTML element.
-         * @param {object} card - The card object to render.
-         * @param {number} index - The index of the card in the hand (for data attribute).
-         * @param {boolean} isPlayable - Whether the card is currently playable.
-         * @returns {HTMLElement} The card div element.
-         */
         function createCardElement(card, index, isPlayable = true) {
             const cardEl = document.createElement('div');
             cardEl.classList.add('card-display');
             cardEl.classList.add(card.color);
             cardEl.dataset.cardIndex = index;
 
-            // Display value, or 'WILD'/'WILD 4' for wild cards
             cardEl.textContent = card.value.toUpperCase();
             if (card.value === 'wild' || card.value === 'wild4') {
                 cardEl.textContent = card.value === 'wild' ? 'WILD' : 'WILD 4';
@@ -1107,15 +1148,11 @@
             return cardEl;
         }
 
-        /**
-         * Updates the entire game UI based on the current local game state.
-         */
         function renderGame() {
-            // Render Discard Pile
             const topCard = localDiscardPile[localDiscardPile.length - 1];
             if (topCard) {
-                discardPileEl.className = 'card-display'; // Reset classes
-                discardPileEl.classList.add(localActiveColor || topCard.color); // Use activeColor if set, otherwise card's color
+                discardPileEl.className = 'card-display';
+                discardPileEl.classList.add(localActiveColor || topCard.color);
                 discardPileEl.textContent = topCard.value.toUpperCase();
                 if (topCard.value === 'wild' || topCard.value === 'wild4') {
                     discardPileEl.textContent = topCard.value === 'wild' ? 'WILD' : 'WILD 4';
@@ -1125,54 +1162,45 @@
                 discardPileEl.textContent = 'Discard';
             }
 
-            // Render Draw Pile (just the back)
             drawPileEl.textContent = localDeck.length > 0 ? 'Draw' : 'Empty';
             drawPileEl.classList.toggle('back', localDeck.length > 0);
             drawPileEl.classList.toggle('disabled', localDeck.length === 0);
 
-            // Get the current human player's team for teammate visibility logic
             const currentHumanPlayer = localPlayers.find(p => p.userId === window.currentUserId);
             const currentHumanPlayerTeam = currentHumanPlayer ? currentHumanPlayer.team : null;
 
-
-            // Render Player Hands
-            // Clear all player areas first
             for (let i = 0; i < 4; i++) {
                 const playerHandEl = document.querySelector(`.player-hand[data-player-id="${i}"]`);
-                const playerAreaEl = document.getElementById(`player-${i}`);
+                const playerAreaEl = document.getElementById(`player-${i}-area`); // Use new area IDs
                 const playerNameEl = playerAreaEl.querySelector('h3');
                 playerHandEl.innerHTML = '';
                 playerAreaEl.classList.remove('current-player');
-                playerNameEl.textContent = `Player ${i + 1}`; // Reset names
-                playerAreaEl.classList.add('hidden'); // Hide by default
+                playerAreaEl.classList.add('hidden');
             }
 
             localPlayers.forEach((player, pIndex) => {
                 const playerHandEl = document.querySelector(`.player-hand[data-player-id="${pIndex}"]`);
-                const playerAreaEl = document.getElementById(`player-${pIndex}`);
+                const playerAreaEl = document.getElementById(`player-${pIndex}-area`);
                 const playerNameEl = playerAreaEl.querySelector('h3');
 
-                playerAreaEl.classList.remove('hidden'); // Show player area
+                playerAreaEl.classList.remove('hidden');
                 playerNameEl.textContent = `${player.name} (Team ${player.team})`;
                 if (player.userId === window.currentUserId) {
                     playerNameEl.textContent += ' (You)';
                 }
-                if (player.userId === localPlayers[0].userId && window.isHost) { // Assuming first player in array is host for display
+                if (player.userId === localPlayers[0].userId && window.isHost) {
                     playerNameEl.textContent += ' (Host)';
                 }
-
 
                 if (pIndex === localCurrentPlayerIndex) {
                     playerAreaEl.classList.add('current-player');
                 }
 
-                // Logic for showing/hiding cards based on teammate status
                 const isMyHand = (player.userId === window.currentUserId);
                 const isTeammate = (player.type === 'bot' && player.team === currentHumanPlayerTeam) ||
-                                   (player.type !== 'bot' && player.team === currentHumanPlayerTeam && player.userId !== window.currentUserId); // Another human teammate
+                                   (player.type !== 'bot' && player.team === currentHumanPlayerTeam && player.userId !== window.currentUserId);
 
                 if (isMyHand || isTeammate) {
-                    // Show current human player's hand or teammate's hand
                     const topCard = localDiscardPile[localDiscardPile.length - 1];
                     player.hand.forEach((card, cardIndex) => {
                         const isPlayable = isValidMove(card, topCard);
@@ -1183,30 +1211,24 @@
                         playerHandEl.appendChild(cardEl);
                     });
                 } else {
-                    // For opponents (bots or other human's turn), show card backs
                     for (let i = 0; i < player.hand.length; i++) {
                         const cardEl = document.createElement('div');
                         cardEl.classList.add('card-display', 'back');
-                        cardEl.textContent = player.hand.length; // Show card count
+                        cardEl.textContent = player.hand.length;
                         playerHandEl.appendChild(cardEl);
                     }
                 }
             });
+
+            // Update team scores display
+            teamAScoreEl.textContent = `Team A Score: ${localTeamScores['A']}`;
+            teamBScoreEl.textContent = `Team B Score: ${localTeamScores['B']}`;
         }
 
-        /**
-         * Updates the game message displayed to the user.
-         * @param {string} message - The message to display.
-         */
         function updateGameMessage(message) {
             gameMessageEl.textContent = message;
         }
 
-        /**
-         * Helper function to shuffle an array.
-         * @param {Array} array - The array to shuffle.
-         * @returns {Array} The shuffled array.
-         */
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -1215,11 +1237,45 @@
             return array;
         }
 
+        // --- Event Listeners ---
+        createRoomBtn.addEventListener('click', window.createRoom);
+        joinRoomBtn.addEventListener('click', window.joinRoom);
+        leaveRoomBtn.addEventListener('click', window.leaveRoom);
+        startGameBtn.addEventListener('click', window.startGameInRoom);
+        drawCardBtn.addEventListener('click', handleDrawCard);
+        passTurnBtn.addEventListener('click', handlePassTurn);
+        drawPileEl.addEventListener('click', handleDrawCard);
+        unoButton.addEventListener('click', handleUnoCall); // UNO button listener
+
+        playerNameInput.addEventListener('input', (event) => {
+            window.currentUserName = event.target.value.trim();
+            if (window.currentUserName === "") {
+                window.currentUserName = "Player";
+            }
+        });
+
+        colorPickerOptions.forEach(option => {
+            option.addEventListener('click', async (event) => {
+                const chosenColor = event.target.dataset.color;
+                colorPickerModal.classList.remove('show');
+                await updateGameDataInFirestore({ activeColor: chosenColor });
+            });
+        });
+
+        restartGameBtn.addEventListener('click', async () => {
+            gameOverModal.classList.remove('show');
+            if (window.isHost) {
+                await window.startGameInRoom();
+            } else {
+                updateGameMessage("Waiting for host to restart the game...");
+            }
+        });
+
         // Initial setup on window load
         window.onload = function() {
             window.initializeAppAndAuth();
             updateGameMessage("Welcome to Uno! Authenticating...");
-            renderGame(); // Render initial empty state
+            renderGame();
         };
 
     </script>
@@ -1272,16 +1328,48 @@
             </div>
         </div>
 
-        <!-- Game Board Area -->
+        <!-- Game Board and Player Layout -->
         <div id="game-board-section" class="hidden">
-            <div class="game-board flex justify-center items-center gap-8">
-                <!-- Draw Pile -->
-                <div id="draw-pile" class="card-display back cursor-pointer hover:scale-105" title="Draw Card">
-                    Draw
+            <div class="score-display" id="team-a-score">Team A Score: 0</div>
+            <div class="score-display" id="team-b-score">Team B Score: 0</div>
+
+            <div class="game-board-layout">
+                <!-- Player 1 (You) - Bottom -->
+                <div id="player-0-area" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
+                    <h3 class="text-xl font-semibold mb-3 text-white">Player 1</h3>
+                    <div class="player-hand" data-player-id="0"></div>
                 </div>
-                <!-- Discard Pile -->
-                <div id="discard-pile" class="card-display border-dashed border-gray-500 flex items-center justify-center text-gray-400 text-lg">
-                    Discard
+
+                <!-- Player 2 (Friend) - Top -->
+                <div id="player-1-area" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
+                    <h3 class="text-xl font-semibold mb-3 text-white">Player 2</h3>
+                    <div class="player-hand" data-player-id="1"></div>
+                </div>
+
+                <!-- Bot 1 - Left -->
+                <div id="player-2-area" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
+                    <h3 class="text-xl font-semibold mb-3 text-white">Bot 1</h3>
+                    <div class="player-hand" data-player-id="2"></div>
+                </div>
+
+                <!-- Bot 2 - Right -->
+                <div id="player-3-area" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
+                    <h3 class="text-xl font-semibold mb-3 text-white">Bot 2</h3>
+                    <div class="player-hand" data-player-id="3"></div>
+                </div>
+
+                <!-- Game Center (Draw/Discard Piles) -->
+                <div class="game-center">
+                    <div class="game-board">
+                        <!-- Draw Pile -->
+                        <div id="draw-pile" class="card-display back cursor-pointer hover:scale-105" title="Draw Card">
+                            Draw
+                        </div>
+                        <!-- Discard Pile -->
+                        <div id="discard-pile" class="card-display border-dashed border-gray-500 flex items-center justify-center text-gray-400 text-lg">
+                            Discard
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1304,33 +1392,6 @@
             </div>
         </div>
 
-        <!-- Player Areas -->
-        <div id="players-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <!-- Player 1 (You/Human/Bot) -->
-            <div id="player-0" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
-                <h3 class="text-xl font-semibold mb-3 text-white">Player 1</h3>
-                <div class="player-hand" data-player-id="0"></div>
-            </div>
-
-            <!-- Player 2 (Friend/Human/Bot) -->
-            <div id="player-1" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
-                <h3 class="text-xl font-semibold mb-3 text-white">Player 2</h3>
-                <div class="player-hand" data-player-id="1"></div>
-            </div>
-
-            <!-- Player 3 (Bot) -->
-            <div id="player-2" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
-                <h3 class="text-xl font-semibold mb-3 text-white">Player 3</h3>
-                <div class="player-hand" data-player-id="2"></div>
-            </div>
-
-            <!-- Player 4 (Bot) -->
-            <div id="player-3" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
-                <h3 class="text-xl font-semibold mb-3 text-white">Player 4</h3>
-                <div class="player-hand" data-player-id="3"></div>
-            </div>
-        </div>
-
         <!-- Game Controls -->
         <div id="game-controls" class="flex justify-center mt-6 gap-4 hidden">
             <button id="draw-card-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
@@ -1338,6 +1399,9 @@
             </button>
             <button id="pass-turn-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
                 Pass Turn
+            </button>
+            <button id="uno-button" class="uno-button hidden">
+                UNO!
             </button>
         </div>
     </div>
