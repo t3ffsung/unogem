@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Uno Game</title>
+    <!-- Tailwind CSS CDN for easy styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .game-container {
+            background-color: #2d3748; /* Darker background for game area */
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-display {
+            width: 80px;
+            height: 120px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+            cursor: pointer;
+            user-select: none;
+            flex-shrink: 0; /* Prevent cards from shrinking */
+        }
+
+        .card-display:hover {
+            transform: translateY(-5px);
+            box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .card-display.red { background-color: #ef4444; } /* Tailwind red-500 */
+        .card-display.blue { background-color: #3b82f6; } /* Tailwind blue-500 */
+        .card-display.green { background-color: #22c55e; } /* Tailwind green-500 */
+        .card-display.yellow { background-color: #eab308; } /* Tailwind yellow-500 */
+        .card-display.black { background-color: #1f2937; } /* Dark gray for wild cards */
+        .card-display.back { background-color: #dc2626; /* Deep red for card back */
+            background-image: linear-gradient(45deg, #dc2626 25%, #ef4444 25%, #ef4444 50%, #dc2626 50%, #dc2626 75%, #ef4444 75%, #ef4444 100%);
+            background-size: 20px 20px;
+            border: 2px solid #b91c1c;
+        }
+
+        .card-display.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .player-hand {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            min-height: 130px; /* Ensure consistent height */
+        }
+
+        .player-area {
+            background-color: #4a5568; /* Slightly lighter gray */
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .player-area.current-player {
+            outline: 3px solid #63b3ed; /* Blue outline for current player */
+            box-shadow: 0 0 15px rgba(99, 179, 237, 0.7);
+        }
+
+        .game-board {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin: 20px 0;
+            min-height: 120px; /* Ensure space for cards */
+        }
+
+        .message-box {
+            background-color: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.1rem;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .color-picker-option {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: border-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+        }
+
+        .color-picker-option:hover {
+            transform: scale(1.1);
+            border-color: #e2e8f0;
+        }
+
+        .color-picker-option.red { background-color: #ef4444; }
+        .color-picker-option.blue { background-color: #3b82f6; }
+        .color-picker-option.green { background-color: #22c55e; }
+        .color-picker-option.yellow { background-color: #eab308; }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: #2d3748;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-content h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #63b3ed;
+        }
+
+        .modal-content button {
+            background-color: #63b3ed;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .modal-content button:hover {
+            background-color: #4299e1;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 15px;
+            }
+            .card-display {
+                width: 60px;
+                height: 90px;
+                font-size: 1.2rem;
+            }
+            .player-hand {
+                gap: 5px;
+            }
+            .game-board {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .color-picker {
+                gap: 10px;
+            }
+            .color-picker-option {
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase instances (will be initialized on window.onload)
+        window.firebaseApp = null;
+        window.db = null;
+        window.auth = null;
+        window.currentUserId = null;
+        window.currentUserName = "Player"; // Default name, can be changed by user
+        window.currentRoomId = null;
+        window.isHost = false; // Flag to determine if current user is the room host
+
+        window.initializeAppAndAuth = async () => {
+            try {
+                // __firebase_config and __app_id are provided by the environment
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                    // Your web app's Firebase configuration
+                    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+                    apiKey: "AIzaSyDO7F6dfdzphfk4y5EO8Ntfd3pu0z5q95k",
+                    authDomain: "uno-gem.firebaseapp.com",
+                    projectId: "uno-gem",
+                    storageBucket: "uno-gem.firebasestorage.app",
+                    messagingSenderId: "44859686150",
+                    appId: "1:44859686150:web:2e7f4261ab2235b5af7287",
+                    measurementId: "G-WK0NE909T9"
+                };
+
+
+                window.firebaseApp = initializeApp(firebaseConfig);
+                window.db = getFirestore(window.firebaseApp);
+                window.auth = getAuth(window.firebaseApp);
+
+                onAuthStateChanged(window.auth, async (user) => {
+                    if (user) {
+                        window.currentUserId = user.uid;
+                        console.log("Authenticated as:", window.currentUserId);
+                        document.getElementById('user-id-display').textContent = `Your User ID: ${window.currentUserId}`;
+                    } else {
+                        console.log("No user signed in. Signing in anonymously...");
+                        // Use __initial_auth_token if available, otherwise sign in anonymously
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(window.auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(window.auth);
+                        }
+                    }
+                    document.getElementById('auth-status').textContent = `Authenticated: ${window.currentUserId ? 'Yes' : 'No'}`;
+                    document.getElementById('room-selection').classList.remove('hidden'); // Show room controls after auth
+                });
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                document.getElementById('game-message').textContent = "Error initializing Firebase. Check console for details.";
+            }
+        };
+
+        // Make functions available globally for direct access from HTML script
+        window.createRoom = async () => {
+            if (!window.db || !window.currentUserId) {
+                updateGameMessage("Firebase not initialized. Please wait.");
+                return;
+            }
+            updateGameMessage("Creating room...");
+            try {
+                const roomsCollectionRef = collection(window.db, `artifacts/${__app_id}/public/data/rooms`);
+                const newRoomRef = doc(roomsCollectionRef); // Firestore generates a unique ID
+                const roomId = newRoomRef.id;
+
+                const initialGameState = {
+                    deck: [],
+                    discardPile: [],
+                    players: [], // Will be populated when game starts
+                    currentPlayerIndex: 0,
+                    direction: 1,
+                    drawPileCount: 0,
+                    activeColor: null,
+                    gameOver: false,
+                    gameStarted: false,
+                };
+
+                await setDoc(newRoomRef, {
+                    roomId: roomId,
+                    hostId: window.currentUserId,
+                    status: 'lobby',
+                    players: [{ userId: window.currentUserId, name: window.currentUserName, team: 'A', hand: [] }],
+                    gameData: initialGameState,
+                    createdAt: new Date().toISOString()
+                });
+
+                window.currentRoomId = roomId;
+                window.isHost = true;
+                updateGameMessage(`Room created! Share this ID: ${roomId}`);
+                document.getElementById('room-id-display').textContent = `Room ID: ${roomId}`;
+                document.getElementById('lobby-room-id-display').textContent = roomId; // Update lobby display
+                document.getElementById('lobby-area').classList.remove('hidden');
+                document.getElementById('room-selection').classList.add('hidden');
+                setupRoomListener(roomId);
+            } catch (e) {
+                console.error("Error creating room: ", e);
+                updateGameMessage("Failed to create room. See console.");
+            }
+        };
+
+        window.joinRoom = async () => {
+            if (!window.db || !window.currentUserId) {
+                updateGameMessage("Firebase not initialized. Please wait.");
+                return;
+            }
+            const roomIdInput = document.getElementById('room-id-input').value.trim();
+            if (!roomIdInput) {
+                updateGameMessage("Please enter a Room ID.");
+                return;
+            }
+            updateGameMessage(`Joining room ${roomIdInput}...`);
+            try {
+                const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, roomIdInput);
+                const roomSnap = await getDoc(roomDocRef);
+
+                if (roomSnap.exists()) {
+                    const roomData = roomSnap.data();
+                    if (roomData.status !== 'lobby') {
+                        updateGameMessage("Cannot join: Game already in progress or finished.");
+                        return;
+                    }
+                    if (roomData.players.length >= 4) {
+                        updateGameMessage("Room is full. Cannot join.");
+                        return;
+                    }
+
+                    // Assign team based on current players
+                    const existingPlayers = roomData.players || [];
+                    let newPlayerTeam = 'A'; // Default to A
+                    if (existingPlayers.length === 1) { // If one player already, assign opposite team
+                        newPlayerTeam = existingPlayers[0].team === 'A' ? 'B' : 'A';
+                    } else if (existingPlayers.length === 2) { // Try to balance teams
+                        const teamACount = existingPlayers.filter(p => p.team === 'A').length;
+                        const teamBCount = existingPlayers.filter(p => p.team === 'B').length;
+                        newPlayerTeam = teamACount <= teamBCount ? 'A' : 'B';
+                    } else if (existingPlayers.length === 3) { // Assign to the team with 1 player
+                        const teamACount = existingPlayers.filter(p => p.team === 'A').length;
+                        const teamBCount = existingPlayers.filter(p => p.team === 'B').length;
+                        newPlayerTeam = teamACount === 1 ? 'A' : 'B';
+                    }
+
+
+                    // Check if player already in room
+                    if (existingPlayers.some(p => p.userId === window.currentUserId)) {
+                        updateGameMessage("You are already in this room.");
+                        window.currentRoomId = roomIdInput;
+                        document.getElementById('room-id-display').textContent = `Room ID: ${roomIdInput}`;
+                        document.getElementById('lobby-room-id-display').textContent = roomIdInput; // Update lobby display
+                        document.getElementById('lobby-area').classList.remove('hidden');
+                        document.getElementById('room-selection').classList.add('hidden');
+                        setupRoomListener(roomIdInput);
+                        return;
+                    }
+
+                    const updatedPlayers = [...existingPlayers, { userId: window.currentUserId, name: window.currentUserName, team: newPlayerTeam, hand: [] }];
+                    await updateDoc(roomDocRef, { players: updatedPlayers });
+
+                    window.currentRoomId = roomIdInput;
+                    updateGameMessage(`Joined room ${roomIdInput}!`);
+                    document.getElementById('room-id-display').textContent = `Room ID: ${roomIdInput}`;
+                    document.getElementById('lobby-room-id-display').textContent = roomIdInput; // Update lobby display
+                    document.getElementById('lobby-area').classList.remove('hidden');
+                    document.getElementById('room-selection').classList.add('hidden');
+                    setupRoomListener(roomIdInput);
+                } else {
+                    updateGameMessage("Room not found. Check the ID.");
+                }
+            } catch (e) {
+                console.error("Error joining room: ", e);
+                updateGameMessage("Failed to join room. See console.");
+            }
+        };
+
+        window.leaveRoom = async () => {
+            if (!window.db || !window.currentRoomId || !window.currentUserId) return;
+
+            try {
+                const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, window.currentRoomId);
+                const roomSnap = await getDoc(roomDocRef);
+
+                if (roomSnap.exists()) {
+                    const roomData = roomSnap.data();
+                    let updatedPlayers = roomData.players.filter(p => p.userId !== window.currentUserId);
+
+                    if (roomData.hostId === window.currentUserId && updatedPlayers.length > 0) {
+                        // If host leaves, assign new host
+                        roomData.hostId = updatedPlayers[0].userId;
+                    } else if (roomData.hostId === window.currentUserId && updatedPlayers.length === 0) {
+                        // If host leaves and no other players, delete room
+                        await deleteDoc(roomDocRef);
+                        console.log("Room deleted as host left and no other players.");
+                        resetGameUI();
+                        return;
+                    }
+
+                    await updateDoc(roomDocRef, { players: updatedPlayers, hostId: roomData.hostId });
+                }
+            } catch (e) {
+                console.error("Error leaving room: ", e);
+            } finally {
+                resetGameUI();
+            }
+        };
+
+        window.startGameInRoom = async () => {
+            if (!window.db || !window.currentRoomId || !window.isHost) {
+                updateGameMessage("Only the host can start the game.");
+                return;
+            }
+
+            updateGameMessage("Starting game...");
+            try {
+                const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, window.currentRoomId);
+                const roomSnap = await getDoc(roomDocRef);
+                const roomData = roomSnap.data();
+
+                if (roomData.players.length < 2) { // Minimum 2 players to start Uno
+                    updateGameMessage("Need at least 2 players to start the game.");
+                    return;
+                }
+
+                // Initialize game state for all players, including bots if needed
+                let gamePlayers = roomData.players.map(p => ({ ...p, hand: [] }));
+                const botNames = ['Bot 1', 'Bot 2'];
+                const botTeams = ['A', 'B']; // Assign teams alternatingly for bots
+
+                // Add bots if less than 4 human players
+                for (let i = gamePlayers.length; i < 4; i++) {
+                    const botId = `bot-${Date.now()}-${i}`;
+                    const assignedTeam = botTeams[i % 2]; // Alternate teams for bots
+                    gamePlayers.push({ userId: botId, name: botNames[i - gamePlayers.length], type: 'bot', team: assignedTeam, hand: [] });
+                }
+
+                // Create and shuffle deck
+                let newDeck = [];
+                COLORS.forEach(color => {
+                    newDeck.push({ color, value: '0' });
+                    for (let i = 1; i <= 9; i++) {
+                        newDeck.push({ color, value: String(i) });
+                        newDeck.push({ color, value: String(i) });
+                    }
+                    VALUES.slice(10).forEach(value => {
+                        newDeck.push({ color, value });
+                        newDeck.push({ color, value });
+                    });
+                });
+                WILD_CARDS.forEach(value => {
+                    for (let i = 0; i < 4; i++) {
+                        newDeck.push({ color: 'black', value });
+                    }
+                });
+                newDeck = shuffleArray(newDeck);
+
+                // Deal cards
+                gamePlayers.forEach(player => {
+                    for (let i = 0; i < 7; i++) {
+                        player.hand.push(newDeck.pop());
+                    }
+                });
+
+                // Place first card on discard pile
+                let firstCard = newDeck.pop();
+                while (firstCard.color === 'black') {
+                    newDeck.unshift(firstCard);
+                    newDeck = shuffleArray(newDeck);
+                    firstCard = newDeck.pop();
+                }
+                let newDiscardPile = [firstCard];
+                let initialActiveColor = firstCard.color;
+
+                await updateDoc(roomDocRef, {
+                    status: 'playing',
+                    players: gamePlayers, // Update players with hands
+                    gameData: {
+                        deck: newDeck,
+                        discardPile: newDiscardPile,
+                        currentPlayerIndex: 0,
+                        direction: 1,
+                        drawPileCount: 0,
+                        activeColor: initialActiveColor,
+                        gameOver: false,
+                        gameStarted: true,
+                    }
+                });
+                updateGameMessage("Game started!");
+            } catch (e) {
+                console.error("Error starting game: ", e);
+                updateGameMessage("Failed to start game. See console.");
+            }
+        };
+
+        // --- Game State Variables (local copies, updated from Firestore) ---
+        const COLORS = ['red', 'blue', 'green', 'yellow'];
+        const VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'skip', 'reverse', 'draw2'];
+        const WILD_CARDS = ['wild', 'wild4']; // Wild, Wild Draw Four
+
+        let localDeck = [];
+        let localDiscardPile = [];
+        let localPlayers = [];
+        let localCurrentPlayerIndex = 0;
+        let localDirection = 1;
+        let localDrawPileCount = 0;
+        let localGameOver = false;
+        let localGameStarted = false;
+        let localActiveColor = null;
+
+        // --- DOM Elements ---
+        const drawPileEl = document.getElementById('draw-pile');
+        const discardPileEl = document.getElementById('discard-pile');
+        const gameMessageEl = document.getElementById('game-message');
+        const playersContainerEl = document.getElementById('players-container');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const drawCardBtn = document.getElementById('draw-card-btn');
+        const passTurnBtn = document.getElementById('pass-turn-btn');
+        const colorPickerModal = document.getElementById('color-picker-modal');
+        const colorPickerOptions = document.querySelectorAll('.color-picker-option');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const gameOverMessageEl = document.getElementById('game-over-message');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const joinRoomBtn = document.getElementById('join-room-btn');
+        const leaveRoomBtn = document.getElementById('leave-room-btn');
+        const roomSelectionEl = document.getElementById('room-selection');
+        const lobbyAreaEl = document.getElementById('lobby-area');
+        const connectedPlayersListEl = document.getElementById('connected-players-list');
+        const userIdDisplayEl = document.getElementById('user-id-display');
+        const roomIdDisplayEl = document.getElementById('room-id-display');
+        const authStatusEl = document.getElementById('auth-status');
+        const playerNameInput = document.getElementById('player-name-input');
+
+        // --- Event Listeners ---
+        createRoomBtn.addEventListener('click', window.createRoom);
+        joinRoomBtn.addEventListener('click', window.joinRoom);
+        leaveRoomBtn.addEventListener('click', window.leaveRoom);
+        startGameBtn.addEventListener('click', window.startGameInRoom);
+        drawCardBtn.addEventListener('click', handleDrawCard);
+        passTurnBtn.addEventListener('click', handlePassTurn);
+        drawPileEl.addEventListener('click', handleDrawCard); // Allow drawing by clicking the pile
+
+        playerNameInput.addEventListener('input', (event) => {
+            window.currentUserName = event.target.value.trim();
+            if (window.currentUserName === "") {
+                window.currentUserName = "Player"; // Default if empty
+            }
+        });
+
+        // Color picker options click handler
+        colorPickerOptions.forEach(option => {
+            option.addEventListener('click', async (event) => {
+                const chosenColor = event.target.dataset.color;
+                colorPickerModal.classList.remove('show'); // Hide modal
+                await updateGameDataInFirestore({ activeColor: chosenColor }); // Update active color in Firestore
+                // nextTurn will be called by the Firestore listener after the update
+            });
+        });
+
+        restartGameBtn.addEventListener('click', async () => {
+            gameOverModal.classList.remove('show');
+            if (window.isHost) {
+                await window.startGameInRoom(); // Host restarts the game
+            } else {
+                updateGameMessage("Waiting for host to restart the game...");
+            }
+        });
+
+        // --- Firestore Listener for Room Data ---
+        let unsubscribeRoomListener = null;
+
+        function setupRoomListener(roomId) {
+            if (unsubscribeRoomListener) {
+                unsubscribeRoomListener(); // Unsubscribe from previous listener if any
+            }
+            const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, roomId);
+            unsubscribeRoomListener = onSnapshot(roomDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const roomData = docSnap.data();
+                    // Update local game state variables
+                    localGameDataSnapshot = roomData.gameData; // Update the snapshot
+                    localDeck = roomData.gameData.deck;
+                    localDiscardPile = roomData.gameData.discardPile;
+                    localPlayers = roomData.players; // Players array from room data
+                    localCurrentPlayerIndex = roomData.gameData.currentPlayerIndex;
+                    localDirection = roomData.gameData.direction;
+                    localDrawPileCount = roomData.gameData.drawPileCount;
+                    localGameOver = roomData.gameData.gameOver;
+                    localGameStarted = roomData.gameData.gameStarted;
+                    localActiveColor = roomData.gameData.activeColor;
+
+                    window.isHost = roomData.hostId === window.currentUserId; // Update host status
+
+                    // Update UI based on room status
+                    if (roomData.status === 'lobby') {
+                        document.getElementById('game-board-section').classList.add('hidden');
+                        document.getElementById('game-controls').classList.add('hidden');
+                        lobbyAreaEl.classList.remove('hidden');
+                        startGameBtn.classList.toggle('hidden', !window.isHost); // Only host can start
+                        updateGameMessage("Waiting for players in the lobby...");
+                        updateLobbyPlayers(roomData.players);
+                    } else if (roomData.status === 'playing') {
+                        lobbyAreaEl.classList.add('hidden');
+                        document.getElementById('game-board-section').classList.remove('hidden');
+                        document.getElementById('game-controls').classList.remove('hidden');
+                        renderGame(); // Re-render game board
+                        const currentPlayer = localPlayers[localCurrentPlayerIndex];
+                        if (currentPlayer && currentPlayer.userId === window.currentUserId) {
+                            updateGameMessage(`It's your turn!`);
+                            drawCardBtn.classList.remove('hidden');
+                            passTurnBtn.classList.remove('hidden');
+                        } else if (currentPlayer) {
+                            updateGameMessage(`It's ${currentPlayer.name}'s turn.`);
+                            drawCardBtn.classList.add('hidden');
+                            passTurnBtn.classList.add('hidden');
+                        }
+                        if (localGameOver) {
+                            gameOverModal.classList.add('show');
+                            gameOverMessageEl.textContent = `${roomData.gameData.winnerName} won the game!`;
+                        }
+                    } else if (roomData.status === 'finished') {
+                        gameOverModal.classList.add('show');
+                        gameOverMessageEl.textContent = `${roomData.gameData.winnerName} won the game!`;
+                        updateGameMessage("Game finished. Click Play Again to restart.");
+                    }
+                } else {
+                    // Room no longer exists (e.g., host deleted it)
+                    updateGameMessage("Room no longer exists. Returning to room selection.");
+                    resetGameUI();
+                }
+            }, (error) => {
+                console.error("Error listening to room:", error);
+                updateGameMessage("Error syncing game state. Check console.");
+            });
+        }
+
+        function updateLobbyPlayers(players) {
+            connectedPlayersListEl.innerHTML = '';
+            players.forEach(p => {
+                const li = document.createElement('li');
+                li.textContent = `${p.name} (Team ${p.team}) ${p.userId === window.currentUserId ? '(You)' : ''} ${p.userId === players[0].userId ? '(Host)' : ''}`;
+                li.classList.add('py-1', 'text-lg');
+                connectedPlayersListEl.appendChild(li);
+            });
+        }
+
+        function resetGameUI() {
+            if (unsubscribeRoomListener) {
+                unsubscribeRoomListener();
+                unsubscribeRoomListener = null;
+            }
+            window.currentRoomId = null;
+            window.isHost = false;
+            localDeck = [];
+            localDiscardPile = [];
+            localPlayers = [];
+            localCurrentPlayerIndex = 0;
+            localDirection = 1;
+            localDrawPileCount = 0;
+            localGameOver = false;
+            localGameStarted = false;
+            localActiveColor = null;
+
+            roomSelectionEl.classList.remove('hidden');
+            lobbyAreaEl.classList.add('hidden');
+            document.getElementById('game-board-section').classList.add('hidden');
+            document.getElementById('game-controls').classList.add('hidden');
+            gameOverModal.classList.remove('show');
+            updateGameMessage("Welcome to Uno! Create or Join a room.");
+            document.getElementById('room-id-display').textContent = 'Room ID: N/A';
+            document.getElementById('lobby-room-id-display').textContent = ''; // Clear lobby room ID
+            renderGame(); // Clear game board
+        }
+
+        /**
+         * Updates the gameData object in Firestore for the current room.
+         * This is the central point for all game state changes.
+         * @param {object} updates - An object containing the fields to update in gameData.
+         */
+        async function updateGameDataInFirestore(updates) {
+            if (!window.db || !window.currentRoomId) {
+                console.error("Cannot update game data: DB or Room ID not available.");
+                return;
+            }
+            const roomDocRef = doc(window.db, `artifacts/${__app_id}/public/data/rooms`, window.currentRoomId);
+            try {
+                await updateDoc(roomDocRef, {
+                    gameData: {
+                        ...localGameDataSnapshot, // Use the latest snapshot to avoid overwriting
+                        ...updates
+                    }
+                });
+            } catch (e) {
+                console.error("Error updating game data:", e);
+                updateGameMessage("Error updating game state. Please try again.");
+            }
+        }
+
+        // Variable to hold the latest gameData snapshot to prevent stale data issues
+        let localGameDataSnapshot = {};
+
+        // --- Game Logic Functions (adapted for Firestore) ---
+
+        /**
+         * Draws a single card from the deck and adds it to the player's hand.
+         * If the deck is empty, shuffles the discard pile back into the deck.
+         * @param {object} player - The player object to draw for.
+         * @returns {object} The card drawn.
+         */
+        function drawCardFromLocalDeck(player) {
+            if (localDeck.length === 0) {
+                if (localDiscardPile.length <= 1) {
+                    updateGameMessage("No cards left in deck or discard pile to draw!");
+                    return null;
+                }
+                const topCard = localDiscardPile.pop();
+                localDeck = shuffleArray(localDiscardPile);
+                localDiscardPile = [topCard];
+                updateGameMessage("Deck ran out! Shuffling discard pile into new deck.");
+            }
+            const card = localDeck.pop();
+            player.hand.push(card);
+            return card;
+        }
+
+        /**
+         * Checks if a card can be played on the current discard pile top card.
+         * @param {object} cardPlayed - The card the current player wants to play.
+         * @param {object} topCard - The card currently on top of the discard pile.
+         * @returns {boolean} True if the move is valid, false otherwise.
+         */
+        function isValidMove(cardPlayed, topCard) {
+            if (!topCard) return true; // Can play any card if discard pile is empty (shouldn't happen after first card)
+
+            // Wild cards can always be played
+            if (cardPlayed.color === 'black') {
+                return true;
+            }
+
+            // If activeColor is set (after a Wild card), check against it
+            const currentTopColor = localActiveColor || topCard.color;
+
+            // Match color or value
+            return cardPlayed.color === currentTopColor || cardPlayed.value === topCard.value;
+        }
+
+        /**
+         * Applies the effect of special cards (Skip, Reverse, Draw2, Wild4).
+         * Updates local state, which will then be pushed to Firestore.
+         * @param {object} card - The card that was just played.
+         */
+        function applyCardEffect(card) {
+            switch (card.value) {
+                case 'skip':
+                    updateGameMessage(`${localPlayers[localCurrentPlayerIndex].name} played a Skip! ${localPlayers[getNextPlayerIndex(localCurrentPlayerIndex)].name} is skipped.`);
+                    localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex); // Skip next player
+                    break;
+                case 'reverse':
+                    localDirection *= -1; // Reverse direction
+                    updateGameMessage(`${localPlayers[localCurrentPlayerIndex].name} played a Reverse! Direction changed.`);
+                    // If only 2 players, reverse acts like a skip
+                    if (localPlayers.length === 2) {
+                        localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
+                    }
+                    break;
+                case 'draw2':
+                    localDrawPileCount += 2;
+                    updateGameMessage(`${localPlayers[localCurrentPlayerIndex].name} played a Draw Two! Next player draws 2 cards.`);
+                    break;
+                case 'wild':
+                    // Handled by color picker modal
+                    break;
+                case 'wild4':
+                    localDrawPileCount += 4;
+                    updateGameMessage(`${localPlayers[localCurrentPlayerIndex].name} played a Wild Draw Four! Next player draws 4 cards.`);
+                    break;
+            }
+        }
+
+        /**
+         * Advances the game to the next player's turn.
+         * Handles drawPileCount for Draw2/Wild4.
+         * Updates Firestore with the new game state.
+         */
+        async function nextTurn() {
+            if (localGameOver) return;
+
+            // Handle accumulated draw cards
+            if (localDrawPileCount > 0) {
+                const nextPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
+                const nextPlayer = localPlayers[nextPlayerIndex];
+                updateGameMessage(`${nextPlayer.name} draws ${localDrawPileCount} cards.`);
+                for (let i = 0; i < localDrawPileCount; i++) {
+                    drawCardFromLocalDeck(nextPlayer);
+                }
+                localDrawPileCount = 0; // Reset draw count
+                localCurrentPlayerIndex = nextPlayerIndex; // Move to the player who drew
+            }
+
+            // Move to the next player based on direction
+            localCurrentPlayerIndex = getNextPlayerIndex(localCurrentPlayerIndex);
+            localActiveColor = null; // Reset active color for next turn unless a new wild is played
+
+            // Check for win condition after a player has played their card and before the next player's turn
+            const previousPlayer = localPlayers[getPreviousPlayerIndex(localCurrentPlayerIndex)];
+            if (previousPlayer.hand.length === 0) {
+                await endGame(previousPlayer);
+                return;
+            } else if (previousPlayer.hand.length === 1) {
+                updateGameMessage(`${previousPlayer.name} says UNO!`);
+            }
+
+            // Update Firestore with the new turn state
+            await updateGameDataInFirestore({
+                players: localPlayers, // Players with updated hands
+                currentPlayerIndex: localCurrentPlayerIndex,
+                direction: localDirection,
+                drawPileCount: localDrawPileCount,
+                activeColor: localActiveColor,
+                deck: localDeck, // Deck might have changed if reshuffled
+                discardPile: localDiscardPile // Discard pile might have changed if reshuffled
+            });
+
+            // If current player is a bot, trigger bot's turn after a short delay
+            const currentPlayer = localPlayers[localCurrentPlayerIndex];
+            if (currentPlayer && currentPlayer.type === 'bot') {
+                setTimeout(botPlay, 1500); // Give a slight delay for bot's turn
+            }
+        }
+
+        /**
+         * Calculates the index of the next player based on current direction.
+         * @param {number} currentIndex - The current player's index.
+         * @returns {number} The index of the next player.
+         */
+        function getNextPlayerIndex(currentIndex) {
+            let next = currentIndex + localDirection;
+            if (next >= localPlayers.length) {
+                next = 0;
+            } else if (next < 0) {
+                next = localPlayers.length - 1;
+            }
+            return next;
+        }
+
+        /**
+         * Calculates the index of the previous player based on current direction.
+         * @param {number} currentIndex - The current player's index.
+         * @returns {number} The index of the previous player.
+         */
+        function getPreviousPlayerIndex(currentIndex) {
+            let prev = currentIndex - localDirection;
+            if (prev >= localPlayers.length) {
+                prev = 0;
+            } else if (prev < 0) {
+                prev = localPlayers.length - 1;
+            }
+            return prev;
+        }
+
+        /**
+         * Handles a human player playing a card.
+         * @param {object} player - The human player object.
+         * @param {number} cardIndex - The index of the card in the player's hand.
+         */
+        async function handlePlayCard(player, cardIndex) {
+            if (localGameOver || player.userId !== window.currentUserId || player.userId !== localPlayers[localCurrentPlayerIndex].userId) {
+                updateGameMessage("It's not your turn or the game is over.");
+                return;
+            }
+
+            const card = player.hand[cardIndex];
+            const topCard = localDiscardPile[localDiscardPile.length - 1];
+
+            if (!isValidMove(card, topCard)) {
+                updateGameMessage("Invalid move! You must match the color or value, or play a Wild card.");
+                return;
+            }
+
+            // Update local state
+            player.hand.splice(cardIndex, 1);
+            localDiscardPile.push(card);
+
+            updateGameMessage(`${player.name} played a ${card.value.toUpperCase()} ${card.color === 'black' ? '' : card.color.toUpperCase()} card.`);
+
+            applyCardEffect(card); // Apply effects to local state
+
+            // If a Wild card was played, show color picker modal
+            if (card.value === 'wild' || card.value === 'wild4') {
+                colorPickerModal.classList.add('show');
+                // Hide buttons until color is chosen
+                drawCardBtn.classList.add('hidden');
+                passTurnBtn.classList.add('hidden');
+                // The nextTurn will be called after color selection is made and pushed to Firestore
+                return;
+            }
+
+            // Hide buttons as turn is ending
+            drawCardBtn.classList.add('hidden');
+            passTurnBtn.classList.add('hidden');
+
+            await nextTurn(); // Proceed to next turn, which pushes state to Firestore
+        }
+
+        /**
+         * Handles a human player drawing a card.
+         */
+        async function handleDrawCard() {
+            const currentPlayer = localPlayers[localCurrentPlayerIndex];
+            if (localGameOver || currentPlayer.userId !== window.currentUserId || currentPlayer.type === 'bot') {
+                updateGameMessage("It's not your turn or the game is over.");
+                return;
+            }
+
+            const drawnCard = drawCardFromLocalDeck(currentPlayer);
+            if (drawnCard) {
+                updateGameMessage(`${currentPlayer.name} drew a card.`);
+                // Update Firestore with the drawn card and updated deck/discard pile
+                await updateGameDataInFirestore({
+                    players: localPlayers, // Player hand updated
+                    deck: localDeck,
+                    discardPile: localDiscardPile
+                });
+                // After drawing, the player can either play the drawn card if valid, or pass their turn.
+                passTurnBtn.classList.remove('hidden');
+                drawCardBtn.classList.add('hidden'); // Cannot draw again
+            }
+        }
+
+        /**
+         * Handles a human player passing their turn after drawing a card.
+         */
+        async function handlePassTurn() {
+            const currentPlayer = localPlayers[localCurrentPlayerIndex];
+            if (localGameOver || currentPlayer.userId !== window.currentUserId || currentPlayer.type === 'bot') {
+                updateGameMessage("It's not your turn or the game is over.");
+                return;
+            }
+            updateGameMessage(`${currentPlayer.name} passed their turn.`);
+            drawCardBtn.classList.add('hidden');
+            passTurnBtn.classList.add('hidden');
+            await nextTurn(); // Proceed to next turn
+        }
+
+        /**
+         * Implements basic bot AI to play a card or draw.
+         * Updates local state and pushes to Firestore.
+         */
+        async function botPlay() {
+            if (localGameOver) return;
+
+            const bot = localPlayers[localCurrentPlayerIndex];
+            const topCard = localDiscardPile[localDiscardPile.length - 1];
+            let played = false;
+
+            // Try to find a playable card
+            for (let i = 0; i < bot.hand.length; i++) {
+                const card = bot.hand[i];
+                if (isValidMove(card, topCard)) {
+                    // Play the card
+                    bot.hand.splice(i, 1);
+                    localDiscardPile.push(card);
+                    updateGameMessage(`${bot.name} played a ${card.value.toUpperCase()} ${card.color === 'black' ? '' : card.color.toUpperCase()} card.`);
+                    applyCardEffect(card);
+                    played = true;
+
+                    // If Wild card, choose a random color
+                    if (card.value === 'wild' || card.value === 'wild4') {
+                        localActiveColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+                        updateGameMessage(`${bot.name} chose ${localActiveColor.toUpperCase()} as the new color.`);
+                    }
+                    break; // Bot plays one card and stops
+                }
+            }
+
+            if (!played) {
+                // If no playable card, draw one
+                drawCardFromLocalDeck(bot);
+                updateGameMessage(`${bot.name} drew a card.`);
+            }
+
+            // Update Firestore with bot's move
+            await updateGameDataInFirestore({
+                players: localPlayers,
+                discardPile: localDiscardPile,
+                deck: localDeck,
+                activeColor: localActiveColor,
+                currentPlayerIndex: localCurrentPlayerIndex, // This will be updated by nextTurn
+                direction: localDirection, // This will be updated by nextTurn
+                drawPileCount: localDrawPileCount // This will be updated by nextTurn
+            });
+
+            setTimeout(nextTurn, 1000); // Proceed to next turn after a short delay
+        }
+
+        /**
+         * Ends the game and declares the winner.
+         * Updates Firestore with game over status.
+         * @param {object} winner - The player who won the game.
+         */
+        async function endGame(winner) {
+            localGameOver = true;
+            localGameStarted = false;
+            updateGameMessage(`${winner.name} won the game!`);
+            gameOverMessageEl.textContent = `${winner.name} won the game!`;
+            gameOverModal.classList.add('show');
+
+            await updateDoc(doc(window.db, `artifacts/${__app_id}/public/data/rooms`, window.currentRoomId), {
+                status: 'finished',
+                'gameData.gameOver': true,
+                'gameData.gameStarted': false,
+                'gameData.winnerName': winner.name
+            });
+
+            // Hide game controls
+            drawCardBtn.classList.add('hidden');
+            passTurnBtn.classList.add('hidden');
+        }
+
+        // --- UI Rendering Functions ---
+
+        /**
+         * Renders a single card HTML element.
+         * @param {object} card - The card object to render.
+         * @param {number} index - The index of the card in the hand (for data attribute).
+         * @param {boolean} isPlayable - Whether the card is currently playable.
+         * @returns {HTMLElement} The card div element.
+         */
+        function createCardElement(card, index, isPlayable = true) {
+            const cardEl = document.createElement('div');
+            cardEl.classList.add('card-display');
+            cardEl.classList.add(card.color);
+            cardEl.dataset.cardIndex = index;
+
+            // Display value, or 'WILD'/'WILD 4' for wild cards
+            cardEl.textContent = card.value.toUpperCase();
+            if (card.value === 'wild' || card.value === 'wild4') {
+                cardEl.textContent = card.value === 'wild' ? 'WILD' : 'WILD 4';
+            }
+
+            if (!isPlayable) {
+                cardEl.classList.add('disabled');
+                cardEl.style.cursor = 'not-allowed';
+            }
+
+            return cardEl;
+        }
+
+        /**
+         * Updates the entire game UI based on the current local game state.
+         */
+        function renderGame() {
+            // Render Discard Pile
+            const topCard = localDiscardPile[localDiscardPile.length - 1];
+            if (topCard) {
+                discardPileEl.className = 'card-display'; // Reset classes
+                discardPileEl.classList.add(localActiveColor || topCard.color); // Use activeColor if set, otherwise card's color
+                discardPileEl.textContent = topCard.value.toUpperCase();
+                if (topCard.value === 'wild' || topCard.value === 'wild4') {
+                    discardPileEl.textContent = topCard.value === 'wild' ? 'WILD' : 'WILD 4';
+                }
+            } else {
+                discardPileEl.className = 'card-display border-dashed border-gray-500 flex items-center justify-center text-gray-400 text-lg';
+                discardPileEl.textContent = 'Discard';
+            }
+
+            // Render Draw Pile (just the back)
+            drawPileEl.textContent = localDeck.length > 0 ? 'Draw' : 'Empty';
+            drawPileEl.classList.toggle('back', localDeck.length > 0);
+            drawPileEl.classList.toggle('disabled', localDeck.length === 0);
+
+            // Render Player Hands
+            // Clear all player areas first
+            for (let i = 0; i < 4; i++) {
+                const playerHandEl = document.querySelector(`.player-hand[data-player-id="${i}"]`);
+                const playerAreaEl = document.getElementById(`player-${i}`);
+                const playerNameEl = playerAreaEl.querySelector('h3');
+                playerHandEl.innerHTML = '';
+                playerAreaEl.classList.remove('current-player');
+                playerNameEl.textContent = `Player ${i + 1}`; // Reset names
+                playerAreaEl.classList.add('hidden'); // Hide by default
+            }
+
+            localPlayers.forEach((player, pIndex) => {
+                const playerHandEl = document.querySelector(`.player-hand[data-player-id="${pIndex}"]`);
+                const playerAreaEl = document.getElementById(`player-${pIndex}`);
+                const playerNameEl = playerAreaEl.querySelector('h3');
+
+                playerAreaEl.classList.remove('hidden'); // Show player area
+                playerNameEl.textContent = `${player.name} (Team ${player.team})`;
+                if (player.userId === window.currentUserId) {
+                    playerNameEl.textContent += ' (You)';
+                }
+                if (player.userId === localPlayers[0].userId && window.isHost) { // Assuming first player in array is host for display
+                    playerNameEl.textContent += ' (Host)';
+                }
+
+
+                if (pIndex === localCurrentPlayerIndex) {
+                    playerAreaEl.classList.add('current-player');
+                }
+
+                if (player.userId === window.currentUserId) {
+                    // Show current human player's hand
+                    const topCard = localDiscardPile[localDiscardPile.length - 1];
+                    player.hand.forEach((card, cardIndex) => {
+                        const isPlayable = isValidMove(card, topCard);
+                        const cardEl = createCardElement(card, cardIndex, isPlayable);
+                        if (isPlayable && localGameStarted && !localGameOver && player.userId === localPlayers[localCurrentPlayerIndex].userId) {
+                            cardEl.addEventListener('click', () => handlePlayCard(player, cardIndex));
+                        }
+                        playerHandEl.appendChild(cardEl);
+                    });
+                } else {
+                    // For other players (bots or other human's turn), show card backs
+                    for (let i = 0; i < player.hand.length; i++) {
+                        const cardEl = document.createElement('div');
+                        cardEl.classList.add('card-display', 'back');
+                        cardEl.textContent = player.hand.length; // Show card count
+                        playerHandEl.appendChild(cardEl);
+                    }
+                }
+            });
+        }
+
+        /**
+         * Updates the game message displayed to the user.
+         * @param {string} message - The message to display.
+         */
+        function updateGameMessage(message) {
+            gameMessageEl.textContent = message;
+        }
+
+        /**
+         * Helper function to shuffle an array.
+         * @param {Array} array - The array to shuffle.
+         * @returns {Array} The shuffled array.
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Initial setup on window load
+        window.onload = function() {
+            window.initializeAppAndAuth();
+            updateGameMessage("Welcome to Uno! Authenticating...");
+            renderGame(); // Render initial empty state
+        };
+
+    </script>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-5 bg-gray-900 text-gray-100">
+    <div class="game-container">
+        <h1 class="text-4xl font-bold text-center mb-6 text-blue-400">Multiplayer Uno Game</h1>
+
+        <div class="text-center mb-4 text-sm">
+            <p id="auth-status">Authenticating...</p>
+            <p id="user-id-display">Your User ID: N/A</p>
+            <p id="room-id-display">Room ID: N/A</p>
+        </div>
+
+        <!-- Room Selection Area -->
+        <div id="room-selection" class="room-controls bg-gray-700 rounded-lg p-6 shadow-md hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-300">Join or Create Room</h2>
+            <div class="mb-4">
+                <label for="player-name-input" class="block text-left text-sm font-medium text-gray-300 mb-1">Your Name:</label>
+                <input type="text" id="player-name-input" placeholder="Enter your name" class="w-full p-2 rounded-md bg-gray-800 border border-gray-600 focus:outline-none focus:border-blue-500" value="Player">
+            </div>
+            <div class="flex flex-col md:flex-row gap-4 mb-4">
+                <button id="create-room-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                    Create New Room
+                </button>
+                <div class="flex-1 flex flex-col gap-2">
+                    <input type="text" id="room-id-input" placeholder="Enter Room ID to join" class="w-full p-2 rounded-md bg-gray-800 border border-gray-600 focus:outline-none focus:border-blue-500">
+                    <button id="join-room-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                        Join Room
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lobby Area -->
+        <div id="lobby-area" class="bg-gray-700 rounded-lg p-6 shadow-md hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-300">Lobby</h2>
+            <p class="text-lg mb-3">Share this Room ID with your friends: <span class="font-bold text-yellow-300" id="lobby-room-id-display"></span></p>
+            <h3 class="text-xl font-semibold mb-2">Connected Players:</h3>
+            <ul id="connected-players-list" class="list-disc list-inside mb-4 text-left">
+                <!-- Player list will be dynamically added here -->
+            </ul>
+            <div class="flex justify-center gap-4">
+                <button id="start-game-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200 hidden">
+                    Start Game
+                </button>
+                <button id="leave-room-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                    Leave Room
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Board Area -->
+        <div id="game-board-section" class="hidden">
+            <div class="game-board flex justify-center items-center gap-8">
+                <!-- Draw Pile -->
+                <div id="draw-pile" class="card-display back cursor-pointer hover:scale-105" title="Draw Card">
+                    Draw
+                </div>
+                <!-- Discard Pile -->
+                <div id="discard-pile" class="card-display border-dashed border-gray-500 flex items-center justify-center text-gray-400 text-lg">
+                    Discard
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Message Box -->
+        <div id="game-message" class="message-box bg-gray-700 border border-gray-600 rounded-lg p-4 text-center text-lg">
+            Welcome to Uno! Authenticating...
+        </div>
+
+        <!-- Color Picker Modal (hidden by default) -->
+        <div id="color-picker-modal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-2xl font-semibold mb-4 text-blue-300">Choose a color for Wild card</h2>
+                <div class="color-picker">
+                    <div class="color-picker-option red" data-color="red"></div>
+                    <div class="color-picker-option blue" data-color="blue"></div>
+                    <div class="color-picker-option green" data-color="green"></div>
+                    <div class="color-picker-option yellow" data-color="yellow"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player Areas -->
+        <div id="players-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <!-- Player 1 (You/Human/Bot) -->
+            <div id="player-0" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
+                <h3 class="text-xl font-semibold mb-3 text-white">Player 1</h3>
+                <div class="player-hand" data-player-id="0"></div>
+            </div>
+
+            <!-- Player 2 (Friend/Human/Bot) -->
+            <div id="player-1" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
+                <h3 class="text-xl font-semibold mb-3 text-white">Player 2</h3>
+                <div class="player-hand" data-player-id="1"></div>
+            </div>
+
+            <!-- Player 3 (Bot) -->
+            <div id="player-2" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
+                <h3 class="text-xl font-semibold mb-3 text-white">Player 3</h3>
+                <div class="player-hand" data-player-id="2"></div>
+            </div>
+
+            <!-- Player 4 (Bot) -->
+            <div id="player-3" class="player-area bg-gray-700 rounded-lg p-4 shadow-md hidden">
+                <h3 class="text-xl font-semibold mb-3 text-white">Player 4</h3>
+                <div class="player-hand" data-player-id="3"></div>
+            </div>
+        </div>
+
+        <!-- Game Controls -->
+        <div id="game-controls" class="flex justify-center mt-6 gap-4 hidden">
+            <button id="draw-card-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                Draw Card
+            </button>
+            <button id="pass-turn-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                Pass Turn
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="game-over-message" class="text-3xl font-bold mb-4"></h2>
+            <button id="restart-game-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                Play Again
+            </button>
+        </div>
+    </div>
+</body>
+</html>
