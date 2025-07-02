@@ -26,63 +26,63 @@
         .game-container {
             background-color: #0066cc; /* Slightly lighter blue for game area */
             border-radius: 15px;
-            padding: 20px; /* Slightly reduced padding */
+            padding: 15px; /* Reduced padding for more space */
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
             width: 100vw; /* Full viewport width */
             height: 100vh; /* Full viewport height */
             display: flex;
             flex-direction: column;
-            gap: 10px; /* Reduced gap for compactness */
+            gap: 8px; /* Further reduced gap */
             overflow: hidden; /* Prevent container scrollbar */
         }
 
         .card-display {
-            width: 70px; /* Slightly smaller cards */
-            height: 105px; /* Maintain aspect ratio */
-            border-radius: 8px; /* Slightly less rounded */
+            width: 65px; /* Slightly smaller cards for better fit */
+            height: 97.5px; /* Maintain aspect ratio (65 * 1.5) */
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 900; /* Extra bold */
-            font-size: 2rem; /* Larger font for numbers */
+            font-weight: 900;
+            font-size: 1.8rem; /* Adjusted font size */
             color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.7); /* Stronger shadow */
-            border: 3px solid rgba(255, 255, 255, 0.6); /* Thicker white border */
-            box-shadow: 3px 3px 8px rgba(0,0,0,0.5); /* Stronger card shadow */
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 3px 3px 8px rgba(0,0,0,0.5);
             transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
             cursor: pointer;
             user-select: none;
             flex-shrink: 0;
             position: relative;
-            font-family: 'Arial Black', sans-serif; /* A bolder font */
+            font-family: 'Arial Black', sans-serif;
         }
 
         .card-display:hover {
-            transform: translateY(-8px); /* More pronounced lift */
+            transform: translateY(-8px);
             box-shadow: 6px 6px 15px rgba(0,0,0,0.7);
         }
 
         /* UNO Game Colors - Authentic and vibrant */
-        .card-display.red { background-color: #CC0000; } /* Classic Uno Red */
-        .card-display.blue { background-color: #0066CC; } /* Classic Uno Blue */
-        .card-display.green { background-color: #009933; } /* Classic Uno Green */
-        .card-display.yellow { background-color: #FFCC00; } /* Classic Uno Yellow */
-        .card-display.black { background-color: #333333; } /* Dark gray for wild cards */
+        .card-display.red { background-color: #CC0000; }
+        .card-display.blue { background-color: #0066CC; }
+        .card-display.green { background-color: #009933; }
+        .card-display.yellow { background-color: #FFCC00; }
+        .card-display.black { background-color: #333333; }
 
         .card-display.back {
-            background-color: #E53935; /* Bright red back */
+            background-color: #E53935;
             background-image:
                 linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1) 100%),
                 linear-gradient(-45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1) 100%);
             background-size: 20px 20px;
             background-position: 0 0;
-            border: 3px solid #8B0000; /* Darker red border */
+            border: 3px solid #8B0000;
             box-shadow: inset 0 0 15px rgba(0,0,0,0.7);
-            font-size: 1.2rem; /* Card count size */
+            font-size: 1.2rem;
         }
 
         .card-display.disabled {
-            opacity: 0.5; /* More faded */
+            opacity: 0.5;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
@@ -91,50 +91,49 @@
         .player-hand {
             display: flex;
             flex-wrap: wrap;
-            gap: 5px;
+            gap: 3px; /* Even smaller gap for cards in hand */
             justify-content: center;
             flex-grow: 1;
-            overflow-y: auto;
+            overflow-y: auto; /* Keep scrolling for many cards */
             min-height: 0;
             align-content: flex-start;
-            padding: 5px; /* Add padding to hand area */
+            padding: 3px;
         }
 
         .player-area {
-            background-color: rgba(0, 0, 0, 0.3); /* Transparent dark overlay */
+            background-color: rgba(0, 0, 0, 0.3);
             border-radius: 10px;
             text-align: center;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
             display: flex;
             flex-direction: column;
-            padding: 10px; /* Reduced padding */
+            padding: 8px; /* Reduced padding */
         }
 
         .player-area.current-player {
-            outline: 4px solid #FFD700; /* Gold outline for current player */
+            outline: 4px solid #FFD700;
             box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
         }
 
-        /* Main game layout grid */
         .game-board-layout {
             display: grid;
-            grid-template-columns: 1fr auto 1fr; /* Flexible side players */
-            grid-template-rows: 1fr auto 1fr; /* Flexible top/bottom players, flexible center */
+            grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr); /* Adjusted minmax for side players */
+            grid-template-rows: minmax(120px, 1fr) auto minmax(120px, 1fr); /* Adjusted minmax for top/bottom players */
             grid-template-areas:
                 "player-top player-top player-top"
                 "player-left game-center player-right"
                 "player-bottom player-bottom player-bottom";
-            gap: 10px;
+            gap: 8px; /* Further reduced gap */
             width: 100%;
             height: calc(100% - 100px); /* Adjust height to fit scores and messages */
             flex-grow: 1;
             overflow: hidden;
         }
 
-        #player-0-area { grid-area: player-bottom; } /* You */
-        #player-1-area { grid-area: player-top; } /* Friend */
-        #player-2-area { grid-area: player-left; } /* Bot 1 */
-        #player-3-area { grid-area: player-right; } /* Bot 2 */
+        #player-0-area { grid-area: player-bottom; }
+        #player-1-area { grid-area: player-top; }
+        #player-2-area { grid-area: player-left; }
+        #player-3-area { grid-area: player-right; }
 
         .game-center {
             grid-area: game-center;
@@ -142,65 +141,114 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 20px;
-            padding: 10px;
+            gap: 15px; /* Reduced gap */
+            padding: 8px;
         }
 
         .game-board {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
-            min-height: 105px; /* Match card height */
+            gap: 15px; /* Reduced gap */
+            min-height: 97.5px; /* Match card height */
         }
 
+        /* Stacked card effect for draw/discard piles */
+        .card-stack {
+            position: relative;
+            width: 65px; /* Match card width */
+            height: 97.5px; /* Match card height */
+        }
+        .card-stack .card-display {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #draw-pile.card-display {
+            z-index: 2; /* Ensure draw pile is on top of its "stack" */
+        }
+        #discard-pile.card-display {
+            z-index: 1; /* Ensure discard pile is below its "stack" */
+        }
+        /* Visual stacking for discard pile */
+        #discard-pile::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            background-color: inherit; /* Inherit color from the card */
+            border: inherit;
+            box-shadow: inherit;
+            transform: translate(-3px, -3px); /* Offset for stacking effect */
+            z-index: -1; /* Behind the actual card */
+        }
+        #discard-pile::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            background-color: inherit;
+            border: inherit;
+            box-shadow: inherit;
+            transform: translate(3px, 3px); /* Offset for stacking effect */
+            z-index: -2;
+        }
+
+
         /* Specific rotations for side players' hands */
-        #player-2-area .player-hand,
+        #player-2-area .player-hand {
+            flex-direction: column;
+            height: 100%;
+            justify-content: flex-start;
+            align-items: center;
+        }
         #player-3-area .player-hand {
             flex-direction: column;
             height: 100%;
             justify-content: flex-start;
-            align-items: center; /* Center cards vertically */
+            align-items: center;
         }
         /* Rotate side player names */
-        #player-2-area h3 { transform: rotate(90deg); margin-bottom: 20px;}
-        #player-3-area h3 { transform: rotate(-90deg); margin-bottom: 20px;}
+        #player-2-area h3 { transform: rotate(90deg); margin-bottom: 20px; white-space: nowrap;}
+        #player-3-area h3 { transform: rotate(-90deg); margin-bottom: 20px; white-space: nowrap;}
 
         .message-box {
             background-color: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px;
-            padding: 10px 15px; /* Smaller padding */
+            padding: 8px 12px; /* Smaller padding */
             text-align: center;
-            font-size: 1rem; /* Slightly smaller font */
-            min-height: 40px; /* Smaller height */
+            font-size: 0.95rem; /* Slightly smaller font */
+            min-height: 35px; /* Smaller height */
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            margin-top: 5px; /* Reduced margin */
+            margin-top: 5px;
         }
 
         .color-picker {
             display: flex;
-            gap: 15px;
-            margin-top: 20px;
+            gap: 10px; /* Reduced gap */
+            margin-top: 15px;
             justify-content: center;
         }
 
         .color-picker-option {
-            width: 60px; /* Larger color options */
-            height: 60px;
+            width: 50px; /* Smaller color options */
+            height: 50px;
             border-radius: 50%;
             cursor: pointer;
-            border: 4px solid transparent; /* Thicker border */
+            border: 3px solid transparent;
             transition: border-color 0.2s ease-in-out, transform 0.1s ease-in-out;
             box-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
 
         .color-picker-option:hover {
-            transform: scale(1.15); /* More pronounced scale */
-            border-color: #FFD700; /* Gold hover border */
+            transform: scale(1.1);
+            border-color: #FFD700;
         }
 
         .color-picker-option.red { background-color: #CC0000; }
@@ -214,7 +262,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8); /* Darker overlay */
+            background-color: rgba(0, 0, 0, 0.8);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -230,28 +278,28 @@
         }
 
         .modal-content {
-            background-color: #1a202c; /* Darker modal background */
-            padding: 40px; /* Larger padding */
-            border-radius: 20px; /* More rounded */
+            background-color: #1a202c;
+            padding: 30px; /* Reduced padding */
+            border-radius: 15px;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-            max-width: 600px; /* Larger max-width */
+            max-width: 500px;
             width: 90%;
             border: 2px solid #63b3ed;
         }
 
         .modal-content h2 {
-            font-size: 2.5rem; /* Larger font */
-            margin-bottom: 25px;
+            font-size: 2rem; /* Reduced font size */
+            margin-bottom: 20px;
             color: #63b3ed;
         }
 
         .modal-content button {
             background-color: #63b3ed;
             color: white;
-            padding: 12px 25px; /* Larger buttons */
-            border-radius: 10px; /* More rounded */
-            font-size: 1.2rem;
+            padding: 10px 20px; /* Reduced padding */
+            border-radius: 8px;
+            font-size: 1.1rem;
             cursor: pointer;
             transition: background-color 0.2s ease, transform 0.1s ease;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
@@ -263,12 +311,12 @@
         }
 
         .uno-button {
-            background-color: #E53935; /* UNO Red */
+            background-color: #E53935;
             color: white;
             font-weight: bold;
-            padding: 10px 20px;
-            border-radius: 50px; /* Pill shape */
-            font-size: 1.2rem;
+            padding: 8px 16px; /* Smaller padding */
+            border-radius: 50px;
+            font-size: 1.1rem; /* Smaller font */
             cursor: pointer;
             border: 3px solid #B71C1C;
             box-shadow: 0 5px 10px rgba(0,0,0,0.3);
@@ -281,12 +329,12 @@
         }
 
         .score-display {
-            background-color: rgba(0, 0, 0, 0.4); /* Slightly transparent */
-            padding: 8px 15px; /* Smaller padding */
+            background-color: rgba(0, 0, 0, 0.4);
+            padding: 6px 12px; /* Smaller padding */
             border-radius: 8px;
-            font-size: 1.1rem; /* Slightly smaller font */
+            font-size: 1rem; /* Smaller font */
             font-weight: bold;
-            margin-bottom: 10px; /* Reduced margin */
+            margin-bottom: 8px; /* Reduced margin */
             text-align: center;
             flex-shrink: 0;
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -297,20 +345,20 @@
             justify-content: space-between;
             width: 100%;
             padding: 5px 0;
-            font-size: 0.9rem;
-            color: #a0aec0; /* Lighter gray for info text */
+            font-size: 0.85rem; /* Smaller font */
+            color: #a0aec0;
             flex-shrink: 0;
         }
         .top-info p { margin: 0; }
 
         /* General button styling */
         .btn {
-            background-color: #4299e1; /* Blue for general buttons */
+            background-color: #4299e1;
             color: white;
             font-weight: bold;
-            padding: 10px 20px;
+            padding: 8px 16px; /* Smaller padding */
             border-radius: 8px;
-            font-size: 1.1rem;
+            font-size: 1rem; /* Smaller font */
             cursor: pointer;
             transition: background-color 0.2s ease, transform 0.1s ease;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -328,52 +376,52 @@
         /* Responsive adjustments for very small screens */
         @media (max-width: 600px) {
             .game-container {
-                padding: 10px;
-            }
-            .card-display {
-                width: 50px;
-                height: 75px;
-                font-size: 1.5rem;
-            }
-            .player-area {
                 padding: 8px;
             }
+            .card-display {
+                width: 45px;
+                height: 67.5px;
+                font-size: 1.2rem;
+            }
+            .player-area {
+                padding: 5px;
+            }
             .player-hand {
-                gap: 3px;
+                gap: 2px;
             }
             .game-board-layout {
                 gap: 5px;
             }
             .game-board {
-                gap: 10px;
+                gap: 8px;
             }
             .color-picker-option {
-                width: 40px;
-                height: 40px;
+                width: 35px;
+                height: 35px;
             }
             .modal-content {
-                padding: 20px;
+                padding: 15px;
             }
             .modal-content h2 {
-                font-size: 1.8rem;
+                font-size: 1.5rem;
             }
             .modal-content button {
-                padding: 8px 15px;
-                font-size: 1rem;
+                padding: 6px 12px;
+                font-size: 0.9rem;
             }
             .uno-button {
-                padding: 8px 15px;
-                font-size: 1rem;
+                padding: 6px 12px;
+                font-size: 0.9rem;
             }
             .score-display {
-                font-size: 0.9rem;
+                font-size: 0.8rem;
             }
             .message-box {
-                font-size: 0.9rem;
-                min-height: 30px;
+                font-size: 0.8rem;
+                min-height: 25px;
             }
             .top-info {
-                font-size: 0.75rem;
+                font-size: 0.7rem;
             }
         }
     </style>
@@ -1321,6 +1369,7 @@
                     player.hand.forEach((card, cardIndex) => {
                         const isPlayable = isValidMove(card, topCard);
                         const cardEl = createCardElement(card, cardIndex, isPlayable);
+                        // Attach event listener ONLY if it's the current human player's turn AND the card is playable
                         if (isMyHand && isPlayable && localGameStarted && !localGameOver && player.userId === localPlayers[localCurrentPlayerIndex].userId) {
                             cardEl.addEventListener('click', () => handlePlayCard(player, cardIndex));
                         }
