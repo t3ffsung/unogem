@@ -37,14 +37,14 @@
         }
 
         .card-display {
-            width: 60px; /* Slightly smaller cards for better fit */
-            height: 90px; /* Maintain aspect ratio (60 * 1.5) */
+            width: 55px; /* Further smaller cards for better fit */
+            height: 82.5px; /* Maintain aspect ratio (55 * 1.5) */
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 900;
-            font-size: 1.7rem; /* Adjusted font size */
+            font-size: 1.6rem; /* Adjusted font size */
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
             border: 3px solid rgba(255, 255, 255, 0.6);
@@ -91,10 +91,10 @@
         .player-hand {
             display: flex;
             flex-wrap: wrap;
-            gap: 2px; /* Even smaller gap for cards in hand */
+            gap: 2px;
             justify-content: center;
             flex-grow: 1;
-            overflow-y: auto; /* Keep scrolling for many cards */
+            overflow-y: auto;
             min-height: 0;
             align-content: flex-start;
             padding: 2px;
@@ -107,11 +107,11 @@
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
             display: flex;
             flex-direction: column;
-            padding: 5px; /* Reduced padding */
+            padding: 5px;
         }
 
         .player-area h3 {
-            font-size: 1rem; /* Smaller player name font */
+            font-size: 0.9rem; /* Smaller player name font */
             margin-bottom: 5px;
         }
         .player-area.current-player {
@@ -121,15 +121,15 @@
 
         .game-board-layout {
             display: grid;
-            /* Adjusted minmax for side players to be smaller */
-            grid-template-columns: minmax(90px, 1fr) auto minmax(90px, 1fr);
+            /* Adjusted minmax for side players to be smaller and fit */
+            grid-template-columns: minmax(80px, 1fr) auto minmax(80px, 1fr);
             /* Adjusted minmax for top/bottom players to be smaller */
-            grid-template-rows: minmax(90px, 1fr) auto minmax(90px, 1fr);
+            grid-template-rows: minmax(80px, 1fr) auto minmax(80px, 1fr);
             grid-template-areas:
                 "player-top player-top player-top"
                 "player-left game-center player-right"
                 "player-bottom player-bottom player-bottom";
-            gap: 5px; /* Further reduced gap */
+            gap: 5px;
             width: 100%;
             height: calc(100% - 100px); /* Adjust height to fit scores and messages */
             flex-grow: 1;
@@ -147,7 +147,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px; /* Reduced gap */
+            gap: 10px;
             padding: 5px;
         }
 
@@ -155,15 +155,15 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px; /* Reduced gap */
-            min-height: 90px; /* Match card height */
+            gap: 10px;
+            min-height: 82.5px; /* Match card height */
         }
 
         /* Stacked card effect for draw/discard piles */
         .card-stack {
             position: relative;
-            width: 60px; /* Match card width */
-            height: 90px; /* Match card height */
+            width: 55px; /* Match card width */
+            height: 82.5px; /* Match card height */
         }
         .card-stack .card-display {
             position: absolute;
@@ -171,23 +171,22 @@
             left: 0;
         }
         #draw-pile.card-display {
-            z-index: 2; /* Ensure draw pile is on top of its "stack" */
+            z-index: 2;
         }
         #discard-pile.card-display {
-            z-index: 1; /* Ensure discard pile is below its "stack" */
+            z-index: 1;
         }
-        /* Visual stacking for discard pile */
         #discard-pile::before {
             content: '';
             position: absolute;
             width: 100%;
             height: 100%;
             border-radius: 8px;
-            background-color: inherit; /* Inherit color from the card */
+            background-color: inherit;
             border: inherit;
             box-shadow: inherit;
-            transform: translate(-3px, -3px); /* Offset for stacking effect */
-            z-index: -1; /* Behind the actual card */
+            transform: translate(-3px, -3px);
+            z-index: -1;
         }
         #discard-pile::after {
             content: '';
@@ -198,36 +197,34 @@
             background-color: inherit;
             border: inherit;
             box-shadow: inherit;
-            transform: translate(3px, 3px); /* Offset for stacking effect */
+            transform: translate(3px, 3px);
             z-index: -2;
         }
 
 
-        /* Specific rotations for side players' hands */
-        #player-2-area .player-hand {
-            flex-direction: column;
-            height: 100%;
-            justify-content: flex-start;
-            align-items: center;
-        }
+        /* Specific styles for side players' hands (bots) */
+        #player-2-area .player-hand,
         #player-3-area .player-hand {
-            flex-direction: column;
+            flex-direction: row; /* Allow horizontal wrapping */
+            flex-wrap: wrap; /* Enable wrapping */
             height: 100%;
-            justify-content: flex-start;
-            align-items: center;
+            justify-content: center; /* Center cards horizontally */
+            align-items: center; /* Center cards vertically */
+            max-width: 120px; /* Limit width to encourage wrapping */
+            overflow-x: hidden; /* Hide horizontal scrollbar if content overflows */
         }
         /* Rotate side player names */
-        #player-2-area h3 { transform: rotate(90deg); margin-bottom: 10px; white-space: nowrap;}
-        #player-3-area h3 { transform: rotate(-90deg); margin-bottom: 10px; white-space: nowrap;}
+        #player-2-area h3 { transform: rotate(90deg); margin-bottom: 5px; white-space: nowrap;}
+        #player-3-area h3 { transform: rotate(-90deg); margin-bottom: 5px; white-space: nowrap;}
 
         .message-box {
             background-color: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px;
-            padding: 5px 8px; /* Smaller padding */
+            padding: 5px 8px;
             text-align: center;
-            font-size: 0.9rem; /* Smaller font */
-            min-height: 30px; /* Smaller height */
+            font-size: 0.85rem; /* Further smaller font */
+            min-height: 25px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -237,14 +234,14 @@
 
         .color-picker {
             display: flex;
-            gap: 8px; /* Reduced gap */
+            gap: 8px;
             margin-top: 10px;
             justify-content: center;
         }
 
         .color-picker-option {
-            width: 45px; /* Smaller color options */
-            height: 45px;
+            width: 40px; /* Smaller color options */
+            height: 40px;
             border-radius: 50%;
             cursor: pointer;
             border: 3px solid transparent;
@@ -285,17 +282,17 @@
 
         .modal-content {
             background-color: #1a202c;
-            padding: 25px; /* Reduced padding */
+            padding: 20px; /* Reduced padding */
             border-radius: 15px;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-            max-width: 450px; /* Smaller max-width */
+            max-width: 400px; /* Smaller max-width */
             width: 90%;
             border: 2px solid #63b3ed;
         }
 
         .modal-content h2 {
-            font-size: 1.8rem; /* Reduced font size */
+            font-size: 1.6rem; /* Reduced font size */
             margin-bottom: 15px;
             color: #63b3ed;
         }
@@ -303,9 +300,9 @@
         .modal-content button {
             background-color: #63b3ed;
             color: white;
-            padding: 8px 16px; /* Reduced padding */
+            padding: 8px 16px;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             cursor: pointer;
             transition: background-color 0.2s ease, transform 0.1s ease;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
@@ -320,9 +317,9 @@
             background-color: #E53935;
             color: white;
             font-weight: bold;
-            padding: 6px 12px; /* Smaller padding */
+            padding: 5px 10px; /* Smaller padding */
             border-radius: 50px;
-            font-size: 1rem; /* Smaller font */
+            font-size: 0.9rem; /* Smaller font */
             cursor: pointer;
             border: 3px solid #B71C1C;
             box-shadow: 0 5px 10px rgba(0,0,0,0.3);
@@ -336,11 +333,11 @@
 
         .score-display {
             background-color: rgba(0, 0, 0, 0.4);
-            padding: 5px 10px; /* Smaller padding */
+            padding: 4px 8px; /* Smaller padding */
             border-radius: 8px;
-            font-size: 0.9rem; /* Smaller font */
+            font-size: 0.8rem; /* Smaller font */
             font-weight: bold;
-            margin-bottom: 5px; /* Reduced margin */
+            margin-bottom: 5px;
             text-align: center;
             flex-shrink: 0;
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -350,8 +347,8 @@
             display: flex;
             justify-content: space-between;
             width: 100%;
-            padding: 3px 0; /* Reduced padding */
-            font-size: 0.8rem; /* Smaller font */
+            padding: 2px 0; /* Reduced padding */
+            font-size: 0.75rem; /* Smaller font */
             color: #a0aec0;
             flex-shrink: 0;
         }
@@ -362,9 +359,9 @@
             background-color: #4299e1;
             color: white;
             font-weight: bold;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             cursor: pointer;
             transition: background-color 0.2s ease, transform 0.1s ease;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -385,49 +382,49 @@
                 padding: 5px;
             }
             .card-display {
-                width: 40px;
-                height: 60px;
-                font-size: 1rem;
+                width: 35px;
+                height: 52.5px;
+                font-size: 0.9rem;
             }
             .player-area {
-                padding: 3px;
+                padding: 2px;
             }
             .player-hand {
                 gap: 1px;
             }
             .game-board-layout {
-                gap: 3px;
+                gap: 2px;
             }
             .game-board {
                 gap: 5px;
             }
             .color-picker-option {
-                width: 30px;
-                height: 30px;
+                width: 25px;
+                height: 25px;
             }
             .modal-content {
-                padding: 10px;
+                padding: 8px;
             }
             .modal-content h2 {
-                font-size: 1.2rem;
+                font-size: 1rem;
             }
             .modal-content button {
-                padding: 5px 10px;
-                font-size: 0.8rem;
+                padding: 4px 8px;
+                font-size: 0.7rem;
             }
             .uno-button {
-                padding: 5px 10px;
-                font-size: 0.8rem;
+                padding: 4px 8px;
+                font-size: 0.7rem;
             }
             .score-display {
-                font-size: 0.7rem;
+                font-size: 0.6rem;
             }
             .message-box {
-                font-size: 0.7rem;
-                min-height: 20px;
+                font-size: 0.6rem;
+                min-height: 18px;
             }
             .top-info {
-                font-size: 0.6rem;
+                font-size: 0.55rem;
             }
         }
     </style>
@@ -648,7 +645,8 @@
                 } else {
                     updateGameMessage("Room not found. Check the ID.");
                 }
-            } catch (e) {
+            }
+             catch (e) {
                 console.error("Error joining room: ", e);
                 updateGameMessage("Failed to join room. See console.");
             }
@@ -1360,10 +1358,10 @@
                 // Apply rotations for side players' names
                 if (pIndex === 2) { /* Bot 1 (Left) */
                     playerNameEl.style.transform = 'rotate(90deg)';
-                    playerNameEl.style.marginBottom = '10px'; /* Adjusted margin */
+                    playerNameEl.style.marginBottom = '5px'; /* Adjusted margin */
                 } else if (pIndex === 3) { /* Bot 2 (Right) */
                     playerNameEl.style.transform = 'rotate(-90deg)';
-                    playerNameEl.style.marginBottom = '10px'; /* Adjusted margin */
+                    playerNameEl.style.marginBottom = '5px'; /* Adjusted margin */
                 }
 
                 const isMyHand = (player.userId === window.currentUserId);
